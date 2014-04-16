@@ -16,6 +16,5 @@ public class Main {
         scenario.setSeed(seed);
         scenario.getScenario().simulate(DataCenterSimulationMain.class);
         
-        //test push
     }
 }
