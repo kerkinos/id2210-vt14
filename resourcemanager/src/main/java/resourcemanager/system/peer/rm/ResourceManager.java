@@ -109,7 +109,9 @@ public final class ResourceManager extends ComponentDefinition {
     Handler<RequestResources.Request> handleResourceAllocationRequest = new Handler<RequestResources.Request>() {
         @Override
         public void handle(RequestResources.Request event) {
-            // TODO 
+            // TODO
+        	System.out.println("RequestResources.Request:" + event.getNumCpus() + "cpus" + event.getAmountMemInMb() 
+        			+ "memInMb");
         }
     };
     Handler<RequestResources.Response> handleResourceAllocationResponse = new Handler<RequestResources.Response>() {
