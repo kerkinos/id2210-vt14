@@ -112,6 +112,16 @@ public final class DataCenterSimulator extends ComponentDefinition {
 
             createAndStartNewPeer(id, event.getNumFreeCpus(), 
                     event.getFreeMemoryInMbs());
+
+            System.out.println("*******************************");
+            System.out.println("*******************************");
+            for(Long a : peersAddress.keySet()) {
+            	System.out.println("peer with id = " + a);
+            }
+            System.out.println("*******************************");
+            System.out.println("*******************************");
+
+            
             ringNodes.addNode(id);
         }
     };

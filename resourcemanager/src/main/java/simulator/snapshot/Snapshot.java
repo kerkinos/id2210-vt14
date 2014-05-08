@@ -81,10 +81,10 @@ public class Snapshot {
                 minFreeMemInMb = p.getFreeMemInMbs();
             }
         }
-        str += "Peer with max num of free cpus: " + maxFreeCpus + "\n";
-        str += "Peer with min num of free cpus: " + minFreeCpus + "\n";
-        str += "Peer with max amount of free mem in MB: " + maxFreeMemInMb + "\n";
-        str += "Peer with min amount of free mem in MB: " + minFreeMemInMb + "\n";
+        //str += "Peer with max num of free cpus: " + maxFreeCpus + "\n";
+//        str += "Peer with min num of free cpus: " + minFreeCpus + "\n";
+//        str += "Peer with max amount of free mem in MB: " + maxFreeMemInMb + "\n";
+//        str += "Peer with min amount of free mem in MB: " + minFreeMemInMb + "\n";
 
         return str;
     }
