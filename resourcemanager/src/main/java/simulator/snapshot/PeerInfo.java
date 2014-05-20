@@ -7,6 +7,8 @@ import se.sics.kompics.address.Address;
 public class PeerInfo {
 
     private ArrayList<Address> neighbours;
+    private ArrayList<Address> tmanPartners;
+    
     private final AvailableResources availableResources;
 
     public PeerInfo(AvailableResources availableResources) {
@@ -29,4 +31,16 @@ public class PeerInfo {
     public synchronized ArrayList<Address> getNeighbours() {
         return new ArrayList<Address>(neighbours);
     }
+
+	public ArrayList<Address> getTmanPartners() {
+		return tmanPartners;
+	}
+
+	public void setTmanPartners(ArrayList<Address> tmanPartners) {
+		this.tmanPartners = tmanPartners;
+	}
+
+	public AvailableResources getAvailableResources() {
+		return availableResources;
+	}
 }

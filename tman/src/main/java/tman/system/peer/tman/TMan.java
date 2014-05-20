@@ -64,6 +64,8 @@ public final class TMan extends ComponentDefinition {
     Handler<TManInit> handleInit = new Handler<TManInit>() {
         @Override
         public void handle(TManInit init) {
+        	
+        	System.out.println("TMan is initialized!!");
             self = init.getSelf();
             tmanConfiguration = init.getConfiguration();
             period = tmanConfiguration.getPeriod();
@@ -80,7 +82,8 @@ public final class TMan extends ComponentDefinition {
         @Override
         public void handle(TManSchedule event) {
             Snapshot.updateTManPartners(self, tmanPartners);
-
+            
+            
             // Publish sample to connected components
             trigger(new TManSample(tmanPartners), tmanPort);
         }
@@ -92,6 +95,8 @@ public final class TMan extends ComponentDefinition {
             List<Address> cyclonPartners = event.getSample();
 
             // merge cyclonPartners into TManPartners
+            tmanPartners.clear();
+            tmanPartners.addAll(cyclonPartners);
         }
     };
 

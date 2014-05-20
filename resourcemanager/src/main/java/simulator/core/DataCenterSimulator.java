@@ -1,7 +1,9 @@
 package simulator.core;
 
 import common.simulation.SimulatorPort;
+
 import java.util.HashMap;
+import java.util.Iterator;
 
 import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.Component;
@@ -16,7 +18,6 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.p2p.bootstrap.BootstrapConfiguration;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timer;
-
 import system.peer.Peer;
 import system.peer.PeerInit;
 import simulator.snapshot.Snapshot;
@@ -31,8 +32,10 @@ import common.simulation.PeerFail;
 import common.simulation.PeerJoin;
 import common.simulation.RequestResource;
 import common.simulation.SimulatorInit;
+
 import java.net.InetAddress;
 import java.util.Random;
+
 import se.sics.ipasdistances.AsIpGenerator;
 import system.peer.RmPort;
 import se.sics.kompics.p2p.experiment.dsl.events.TerminateExperiment;
@@ -91,9 +94,20 @@ public final class DataCenterSimulator extends ComponentDefinition {
     Handler<RequestResource> handleRequestResource = new Handler<RequestResource>() {
         @Override
         public void handle(RequestResource event) {
-            Long successor = ringNodes.getNode(event.getId());
-            Component peer = peers.get(successor);
-            trigger( event, peer.getNegative(RmPort.class));
+
+//            System.out.println("------------------" + event.getId());
+//            Long successor = ringNodes.getNode(event.getId());
+//            Long successortest = ringNodes.getNode(Long.parseLong("4"));
+//            System.out.println("------------------" + successortest);
+//            System.out.println("------------------" + successor);
+//            Component peer = peers.get(successor);
+//            System.out.println("------------------" + peer.toString());
+//            trigger( event, peer.getNegative(RmPort.class));       
+//            
+        	Random generator = new Random();
+        	Object[] peerValues =  peers.values().toArray();
+        	Component peer = (Component) peerValues[generator.nextInt(peerValues.length)];
+        	trigger( event, peer.getNegative(RmPort.class)); 
         }
     };
 	
@@ -167,7 +181,7 @@ public final class DataCenterSimulator extends ComponentDefinition {
         
         AvailableResources ar = new AvailableResources(numCpus, memInMb);
         trigger(new PeerInit(address, bootstrapConfiguration, cyclonConfiguration, 
-                rmConfiguration, ar), peer.getControl());
+        		tmanConfiguration, rmConfiguration, ar), peer.getControl());
 
         trigger(new Start(), peer.getControl());
         peers.put(id, peer);
