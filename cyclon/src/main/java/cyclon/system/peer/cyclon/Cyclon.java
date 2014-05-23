@@ -54,7 +54,7 @@ public final class Cyclon extends ComponentDefinition {
 	Handler<CyclonInit> handleInit = new Handler<CyclonInit>() {
 		public void handle(CyclonInit init) {
 			cyclonConfiguration = init.getConfiguration();
-                        availableResources = init.getAvailableResources();
+            availableResources = init.getAvailableResources();
 			shuffleLength = cyclonConfiguration.getShuffleLength();
 			shufflePeriod = cyclonConfiguration.getShufflePeriod();
 			shuffleTimeout = cyclonConfiguration.getShuffleTimeout();
@@ -102,7 +102,7 @@ public final class Cyclon extends ComponentDefinition {
 	private void initiateShuffle(int shuffleSize, Address randomPeer) {
 		// send the random view to a random peer
 		ArrayList<PeerDescriptor> randomDescriptors = cache.selectToSendAtActive(shuffleSize - 1, randomPeer);
-		randomDescriptors.add(new PeerDescriptor(self));
+		randomDescriptors.add(new PeerDescriptor(self, availableResources));
 		DescriptorBuffer randomBuffer = new DescriptorBuffer(self, randomDescriptors);
 		
 		ScheduleTimeout rst = new ScheduleTimeout(shuffleTimeout);
@@ -191,12 +191,19 @@ public final class Cyclon extends ComponentDefinition {
 	};
 	
 
-	private ArrayList<Address> getPartners() {
+	private ArrayList<PeerDescriptor> getPartners() {
 		ArrayList<PeerDescriptor> partnersDescriptors = cache.getAll();
-		ArrayList<Address> partners = new ArrayList<Address>();
-		for (PeerDescriptor desc : partnersDescriptors)
-			partners.add(desc.getAddress());
-		
-		return partners;
+		//ArrayList<Address> partners = new ArrayList<Address>();
+//		for (PeerDescriptor desc : partnersDescriptors) {
+//			if(desc.getAddress() == self) {
+//				System.out.println("IN HEREEEEEEEEEEEEEEE");
+//				desc.setNumFreeCpus(availableResources.getNumFreeCpus());
+//				desc.setFreeMemoryInMbs(availableResources.getFreeMemInMbs());
+//			}
+//			partners.add(desc.getAddress());
+//		}
+		System.out.println("In Cyclon: id " + self.getId() + " cpus are " + availableResources.getNumFreeCpus());
+		//return partners;
+		return 	partnersDescriptors;
 	}
 }

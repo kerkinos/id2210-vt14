@@ -2,13 +2,20 @@ package tman.system.peer.tman;
 
 import common.configuration.TManConfiguration;
 import common.peer.AvailableResources;
+
 import java.util.ArrayList;
 
 import cyclon.system.peer.cyclon.CyclonSample;
 import cyclon.system.peer.cyclon.CyclonSamplePort;
+import cyclon.system.peer.cyclon.DescriptorBuffer;
+import cyclon.system.peer.cyclon.PeerDescriptor;
+
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +29,6 @@ import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-
 import tman.simulator.snapshot.Snapshot;
 
 public final class TMan extends ComponentDefinition {
@@ -35,10 +41,19 @@ public final class TMan extends ComponentDefinition {
     Positive<Timer> timerPort = positive(Timer.class);
     private long period;
     private Address self;
-    private ArrayList<Address> tmanPartners;
+    private PeerDescriptor selfDescriptor;
+    private ArrayList<PeerDescriptor> tmanPartnersByRes;
+    private ArrayList<PeerDescriptor> tmanPartnersByCpus;
+    private ArrayList<PeerDescriptor> tmanPartnersByMem;
+    private ArrayList<PeerDescriptor> cyclonPartners;
+    
+    private DescriptorBuffer myBuffer;
+    
     private TManConfiguration tmanConfiguration;
     private Random r;
     private AvailableResources availableResources;
+    
+
 
     public class TManSchedule extends Timeout {
 
@@ -52,13 +67,18 @@ public final class TMan extends ComponentDefinition {
     }
 
     public TMan() {
-        tmanPartners = new ArrayList<Address>();
-
+    	cyclonPartners = new ArrayList<PeerDescriptor>();
+        tmanPartnersByRes = new ArrayList<PeerDescriptor>();
+        tmanPartnersByCpus = new ArrayList<PeerDescriptor>();
+        tmanPartnersByMem = new ArrayList<PeerDescriptor>();
+        
+        selfDescriptor = new PeerDescriptor(self, availableResources);
+        
         subscribe(handleInit, control);
         subscribe(handleRound, timerPort);
         subscribe(handleCyclonSample, cyclonSamplePort);
-        subscribe(handleTManPartnersResponse, networkPort);
-        subscribe(handleTManPartnersRequest, networkPort);
+        subscribe(handletmanPartnersResponse, networkPort);
+        subscribe(handletmanPartnersRequest, networkPort);
     }
 
     Handler<TManInit> handleInit = new Handler<TManInit>() {
@@ -71,6 +91,7 @@ public final class TMan extends ComponentDefinition {
             period = tmanConfiguration.getPeriod();
             r = new Random(tmanConfiguration.getSeed());
             availableResources = init.getAvailableResources();
+            
             SchedulePeriodicTimeout rst = new SchedulePeriodicTimeout(period, period);
             rst.setTimeoutEvent(new TManSchedule(rst));
             trigger(rst, timerPort);
@@ -81,38 +102,113 @@ public final class TMan extends ComponentDefinition {
     Handler<TManSchedule> handleRound = new Handler<TManSchedule>() {
         @Override
         public void handle(TManSchedule event) {
-            Snapshot.updateTManPartners(self, tmanPartners);
+            Snapshot.updateTManPartners(new PeerDescriptor(self,  availableResources), tmanPartnersByRes);
             
+
+            PeerDescriptor selectedPeer;
+            selectedPeer = selectPeer(tmanPartnersByRes.size() / 2, tmanPartnersByRes);
+            if(!tmanPartnersByRes.contains(selfDescriptor)) {
+            	tmanPartnersByRes.add(selfDescriptor);
+            }
+            Collections.sort(tmanPartnersByRes, new ComparatorByResources(new PeerDescriptor(selectedPeer.getAddress(), selectedPeer.getAv())));
+
+            myBuffer = new DescriptorBuffer(self, tmanPartnersByRes);
+            //check null selectedPeer
+            trigger(new ExchangeMsg.Request(UUID.randomUUID(), myBuffer, self, selectedPeer.getAddress()), networkPort);
             
             // Publish sample to connected components
-            trigger(new TManSample(tmanPartners), tmanPort);
+            trigger(new TManSample(tmanPartnersByRes), tmanPort);
         }
     };
 
     Handler<CyclonSample> handleCyclonSample = new Handler<CyclonSample>() {
         @Override
         public void handle(CyclonSample event) {
-            List<Address> cyclonPartners = event.getSample();
+            cyclonPartners = event.getSample();
 
-            // merge cyclonPartners into TManPartners
-            tmanPartners.clear();
-            tmanPartners.addAll(cyclonPartners);
+            // merge cyclonPartners into tmanPartnersByRes
+            tmanPartnersByRes.clear();
+            
+            if(!cyclonPartners.isEmpty()) {
+                tmanPartnersByRes.addAll(cyclonPartners);
+                tmanPartnersByCpus.addAll(cyclonPartners);
+                tmanPartnersByMem.addAll(cyclonPartners);
+                
+                System.out.println("In TMan : cyclonPartners -> " + cyclonPartners);
+                System.out.println("In TMan : tmanPartnersByRes -> " + tmanPartnersByRes);
+                for(PeerDescriptor pd : tmanPartnersByRes) {
+                	System.out.println(pd.getAv().getNumFreeCpus() + " " + pd.getAv().getFreeMemInMbs());
+                }
+                Collections.sort(tmanPartnersByRes, new ComparatorByResources(new PeerDescriptor(self, availableResources)));
+                Collections.sort(tmanPartnersByCpus, new ComparatorByNumCpu(new PeerDescriptor(self, availableResources)));
+                Collections.sort(tmanPartnersByMem, new ComparatorByNumMem(new PeerDescriptor(self, availableResources)));
+
+                System.out.println("In TMan : tmanPartnersByRes -> " + tmanPartnersByRes);
+                for(PeerDescriptor pd : tmanPartnersByRes) {
+                	System.out.println(pd.getAv().getNumFreeCpus() + pd.getAv().getFreeMemInMbs());
+                }
+
+
+            }
+            else {
+            	System.out.println("empty sample");
+            }
         }
     };
 
-    Handler<ExchangeMsg.Request> handleTManPartnersRequest = new Handler<ExchangeMsg.Request>() {
+    Handler<ExchangeMsg.Request> handletmanPartnersRequest = new Handler<ExchangeMsg.Request>() {
         @Override
         public void handle(ExchangeMsg.Request event) {
-
+        	ArrayList<PeerDescriptor> receivedView = event.getRandomBuffer().getDescriptors();
+        	PeerDescriptor from = null;
+        	for(PeerDescriptor pd : event.getRandomBuffer().getDescriptors()) {
+        		if(pd.getAddress() == event.getSource()) {
+        			from = pd;
+        			break;
+        		}
+        	}
+        	if(!tmanPartnersByRes.contains(selfDescriptor)) {
+        		tmanPartnersByRes.add(selfDescriptor);
+        	}
+            Collections.sort(tmanPartnersByRes, new ComparatorByResources(new PeerDescriptor(event.getSource(),
+            						from.getAv())));
+            myBuffer = new DescriptorBuffer(self, tmanPartnersByRes);
+            trigger(new ExchangeMsg.Response(UUID.randomUUID(), myBuffer, self, event.getSource()), networkPort);
+            tmanPartnersByRes.addAll(receivedView);
+            HashSet<PeerDescriptor> hs = new HashSet<PeerDescriptor>();
+            hs.addAll(tmanPartnersByRes);
+            tmanPartnersByRes.clear();
+            tmanPartnersByRes.addAll(hs);
         }
     };
 
-    Handler<ExchangeMsg.Response> handleTManPartnersResponse = new Handler<ExchangeMsg.Response>() {
+    Handler<ExchangeMsg.Response> handletmanPartnersResponse = new Handler<ExchangeMsg.Response>() {
         @Override
         public void handle(ExchangeMsg.Response event) {
-
+        	ArrayList<PeerDescriptor> receivedView = event.getSelectedBuffer().getDescriptors();
+            tmanPartnersByRes.addAll(receivedView);
+        	HashSet<PeerDescriptor> hs = new HashSet<PeerDescriptor>();
+            hs.addAll(tmanPartnersByRes);
+            tmanPartnersByRes.clear();
+            tmanPartnersByRes.addAll(hs);
         }
     };
+    
+    public void PrintMsg(String msg) {
+    	logger.info("Peer " + self.getId() + " :" + msg);
+    }
+    
+    public PeerDescriptor selectPeer(int psi, ArrayList<PeerDescriptor> view) {
+    	if(view.size() == 0) {
+    		return null;
+    	}
+    	else if(view.size() == 1) {
+    		return view.get(0);
+    	}
+    	else {
+    		return view.get(r.nextInt(psi));
+    	}
+    }
 
     // TODO - if you call this method with a list of entries, it will
     // return a single node, weighted towards the 'best' node (as defined by

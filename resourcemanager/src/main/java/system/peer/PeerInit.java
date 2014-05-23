@@ -4,6 +4,7 @@ import common.configuration.RmConfiguration;
 import common.configuration.CyclonConfiguration;
 import common.configuration.TManConfiguration;
 import common.peer.AvailableResources;
+import common.peer.PeerDescriptor;
 import se.sics.kompics.Init;
 import se.sics.kompics.address.Address;
 import se.sics.kompics.p2p.bootstrap.BootstrapConfiguration;

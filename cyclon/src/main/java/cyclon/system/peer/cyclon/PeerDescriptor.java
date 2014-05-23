@@ -1,6 +1,9 @@
 package cyclon.system.peer.cyclon;
 
 import java.io.Serializable;
+
+import common.peer.AvailableResources;
+
 import se.sics.kompics.address.Address;
 
 
@@ -8,11 +11,13 @@ public class PeerDescriptor implements Comparable<PeerDescriptor>, Serializable 
 	private static final long serialVersionUID = 1906679375438244117L;
 	private final Address peerAddress;
 	private int age;
+	private AvailableResources av;
+	    
 
-
-	public PeerDescriptor(Address peerAddress) {
+	public PeerDescriptor(Address peerAddress, AvailableResources av) {
 		this.peerAddress = peerAddress;
 		this.age = 0;
+		this.av = av;
 	}
 
 
@@ -29,6 +34,19 @@ public class PeerDescriptor implements Comparable<PeerDescriptor>, Serializable 
 
 	public Address getAddress() {
 		return peerAddress;
+	}
+
+
+	
+
+
+	public AvailableResources getAv() {
+		return av;
+	}
+
+
+	public void setAv(AvailableResources av) {
+		this.av = av;
 	}
 
 

@@ -36,6 +36,7 @@ import common.simulation.SimulatorInit;
 import java.net.InetAddress;
 import java.util.Random;
 
+import cyclon.system.peer.cyclon.PeerDescriptor;
 import se.sics.ipasdistances.AsIpGenerator;
 import system.peer.RmPort;
 import se.sics.kompics.p2p.experiment.dsl.events.TerminateExperiment;
@@ -77,8 +78,8 @@ public final class DataCenterSimulator extends ComponentDefinition {
 
             bootstrapConfiguration = init.getBootstrapConfiguration();
             cyclonConfiguration = init.getCyclonConfiguration();
-            rmConfiguration = init.getAggregationConfiguration();
             tmanConfiguration = init.getTmanConfiguration();
+            rmConfiguration = init.getAggregationConfiguration();
             
             identifierSpaceSize = cyclonConfiguration.getIdentifierSpaceSize();
 
@@ -172,6 +173,7 @@ public final class DataCenterSimulator extends ComponentDefinition {
 
 	
     private void createAndStartNewPeer(long id, int numCpus, int memInMb) {
+    	System.out.println("Starting a new peer with " + numCpus + " " + memInMb);
         Component peer = create(Peer.class);
         InetAddress ip = ipGenerator.generateIP();
         Address address = new Address(ip, 8058, (int) id);
@@ -186,7 +188,7 @@ public final class DataCenterSimulator extends ComponentDefinition {
         trigger(new Start(), peer.getControl());
         peers.put(id, peer);
         peersAddress.put(id, address);
-        Snapshot.addPeer(address, ar);
+        Snapshot.addPeer(new PeerDescriptor(address, ar), ar);
     }
 
 	

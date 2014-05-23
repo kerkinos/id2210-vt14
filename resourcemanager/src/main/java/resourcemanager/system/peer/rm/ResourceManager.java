@@ -20,8 +20,7 @@ import java.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import resourcemanager.system.peer.rm.RequestResources.Allocate;
-import resourcemanager.system.peer.rm.CheckTimeout;
+import resourcemanager.system.peer.rm.JobDone;
 
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
@@ -39,230 +38,248 @@ import tman.system.peer.tman.TManSamplePort;
 
 /**
  * Should have some comments here.
- *
+ * 
  * @author jdowling
  */
 public final class ResourceManager extends ComponentDefinition {
 
-    private static final Logger logger = LoggerFactory.getLogger(ResourceManager.class);
-    Positive<RmPort> indexPort = requires(RmPort.class);
-    Positive<Network> networkPort = requires(Network.class);
-    Positive<Timer> timerPort = requires(Timer.class);
-    Negative<Web> webPort = provides(Web.class);
-    Positive<CyclonSamplePort> cyclonSamplePort = requires(CyclonSamplePort.class);
-    Positive<TManSamplePort> tmanPort = requires(TManSamplePort.class);
-    ArrayList<Address> cyclonPartners = new ArrayList<Address>();
-    ArrayList<Address> tmanPartners = new ArrayList<Address>();
+	private static final Logger logger = LoggerFactory
+			.getLogger(ResourceManager.class);
+	Positive<RmPort> indexPort = requires(RmPort.class);
+	Positive<Network> networkPort = requires(Network.class);
+	Positive<Timer> timerPort = requires(Timer.class);
+	Negative<Web> webPort = provides(Web.class);
+	Positive<CyclonSamplePort> cyclonSamplePort = requires(CyclonSamplePort.class);
+	Positive<TManSamplePort> tmanPort = requires(TManSamplePort.class);
+	ArrayList<PeerDescriptor> cyclonPartners = new ArrayList<PeerDescriptor>();
+	ArrayList<PeerDescriptor> tmanPartners = new ArrayList<PeerDescriptor>();
 
-    
-    private Address self;
-    private RmConfiguration configuration;
-    private Random random;
-    private AvailableResources availableResources;
-    private static final int MUX_NUM_NODES = 4;
-    
-    // queue where we put incoming requests for resources
+	private Address self;
+	private RmConfiguration configuration;
+	private Random random;
+	private AvailableResources availableResources;
+	private static final int MUX_NUM_NODES = 4;
 
-    private Queue<RequestResources.Allocate> queue = new LinkedList<RequestResources.Allocate>();
-    private Map<Long, RequestResources> resMap = new HashMap<Long, RequestResources>();
-    
-    Comparator<PeerDescriptor> peerAgeComparator = new Comparator<PeerDescriptor>() {
-        @Override
-        public int compare(PeerDescriptor t, PeerDescriptor t1) {
-            if (t.getAge() > t1.getAge()) {
-                return 1;
-            } else {
-                return -1;
-            }
-        }
-    };
+	// queue where we put incoming requests for resources
 
-	
-    public ResourceManager() {
+	private Queue<Allocate> queue = new LinkedList<Allocate>();
+	private Map<Long, RequestResources> requestResourcesMap = new HashMap<Long, RequestResources>();
 
-        subscribe(handleInit, control);
-        subscribe(handleCyclonSample, cyclonSamplePort);
-        subscribe(handleRequestResource, indexPort);
-        subscribe(handleUpdateTimeout, timerPort);
-		subscribe(handleCheckTimeout, timerPort);
-        subscribe(handleResourceAllocationRequest, networkPort);
-        subscribe(handleResourceAllocationResponse, networkPort);
-        subscribe(handleAllocateResources, networkPort);
-        subscribe(handleTManSample, tmanPort);
-    }
-	
-    Handler<RmInit> handleInit = new Handler<RmInit>() {
-        @Override
-        public void handle(RmInit init) {
-            self = init.getSelf();
-            configuration = init.getConfiguration();
-            random = new Random(init.getConfiguration().getSeed());
-            availableResources = init.getAvailableResources();
-            long period = configuration.getPeriod();
-            availableResources = init.getAvailableResources();
-            SchedulePeriodicTimeout rst = new SchedulePeriodicTimeout(period, period);
-            rst.setTimeoutEvent(new UpdateTimeout(rst));
-                        		
-            trigger(rst, timerPort);
-
-
-        }
-    };
-
-
-    Handler<UpdateTimeout> handleUpdateTimeout = new Handler<UpdateTimeout>() {
-        @Override
-        public void handle(UpdateTimeout event) {
-
-            // pick a random neighbour to ask for index updates from. 
-            // You can change this policy if you want to.
-            // Maybe a gradient neighbour who is closer to the leader?
-            if (cyclonPartners.isEmpty()) {
-                return;
-            }
-            Address dest = cyclonPartners.get(random.nextInt(cyclonPartners.size()));
-
-
-        }
-    };
-
-
-    Handler<RequestResources.Request> handleResourceAllocationRequest = new Handler<RequestResources.Request>() {
-        @Override
-        public void handle(RequestResources.Request event) {
-        	System.out.println(self.getId() + " : Received Request for " + event.getNumCpus() + " cpus and " + event.getAmountMemInMb() 
-        			+ " memInMb" + " from peer with id " + event.getSource().getId());
-        	System.out.println("I have " + availableResources.getNumFreeCpus() + " cpus and " + availableResources.getFreeMemInMbs());
-        	
-        	
-        	//send a response event with a boolean value 
-        	boolean success = availableResources.isAvailable(event.getNumCpus(), event.getAmountMemInMb());
-        	RequestResources.Response response = new RequestResources.Response(self, event.getSource(), success, queue.size(), event.getReqid());
-        	trigger(response, networkPort);
-        	
-        }
-    };
-    
-    Handler<RequestResources.Response> handleResourceAllocationResponse = new Handler<RequestResources.Response>() {
-        @Override
-        public void handle(RequestResources.Response event) {
-        	//System.out.println(self + " Got response from " + event.getSource().getId());
-        	
-        	RequestResources rr = resMap.get(event.getReqid());
-        	RequestResources.Response best = rr.findBestResponse(event);
-        	if(--rr.pendingResponses == 0) {
-        		RequestResources.Allocate al = new RequestResources.Allocate(self, best.getSource(),
-        				rr.getNumCpus(), rr.getAmountMem(), rr.getTime());
-        		trigger(al, networkPort);
-        	}
-        	
-        }
-    };
-    
-    Handler<RequestResources.Allocate> handleAllocateResources = new Handler<RequestResources.Allocate>() {
-		
+	Comparator<PeerDescriptor> peerAgeComparator = new Comparator<PeerDescriptor>() {
 		@Override
-		public void handle(RequestResources.Allocate arg0) {
-        	boolean success = availableResources.isAvailable(arg0.getNumCpus(), arg0.getAmountMem());
-        	if(!success) {
-        		queue.add(arg0);
-        	}
-        	else {
-        		availableResources.allocate(arg0.getNumCpus(), arg0.getAmountMem());
-    			ScheduleTimeout st = new ScheduleTimeout(arg0.getTime());
-    			st.setTimeoutEvent(new CheckTimeout(st, arg0.getNumCpus(), arg0.getAmountMem()));
-    			trigger(st, timerPort);
-        	}
-			
-		}
-	};
-	
-	Handler<CheckTimeout> handleCheckTimeout = new Handler<CheckTimeout>() {
-		
-		@Override
-		public void handle(CheckTimeout arg0) {
-			availableResources.release(arg0.getNumCpus(), arg0.getAmountMem());
-			
-			if(!queue.isEmpty()) {
-				
-				RequestResources.Allocate al = queue.poll();
-				
-	        	boolean success = availableResources.isAvailable(al.getNumCpus(), al.getAmountMem());
-	        	if(success) {
-	        		availableResources.allocate(al.getNumCpus(), al.getAmountMem());
-	    			ScheduleTimeout st = new ScheduleTimeout(al.getTime());
-	    			st.setTimeoutEvent(new CheckTimeout(st, al.getNumCpus(), al.getAmountMem()));
-	    			trigger(st, timerPort);
-	        	}
+		public int compare(PeerDescriptor t, PeerDescriptor t1) {
+			if (t.getAge() > t1.getAge()) {
+				return 1;
+			} else {
+				return -1;
 			}
 		}
 	};
-    
-    Handler<CyclonSample> handleCyclonSample = new Handler<CyclonSample>() {
-        @Override
-        public void handle(CyclonSample event) {
-            System.out.println("id " + self.getId() + " received samples: " + event.getSample().size());
-            
-            
-            // receive a new list of cyclonPartners
-            cyclonPartners.clear();
-            cyclonPartners.addAll(event.getSample());
-            
-            if(event.getSample().size() > 0) {
-	            System.out.print("My neigbours are [ ");
-	            for(Address peer : cyclonPartners){
-	            	System.out.print(peer.getId() + " ");
-	            }
-	            System.out.print("]\n\n");
-            }
 
-        }
-    };
-	
-    Handler<RequestResource> handleRequestResource = new Handler<RequestResource>() {
-        @Override
-        public void handle(RequestResource event) {
-            
-            //System.out.println("Allocate resources: " + event.getId() + " " + event.getNumCpus() + " + " + event.getMemoryInMbs());
-            // TODO: Ask for resources from cyclonPartners
-            // by sending a ResourceRequest
-        	
-        	
-        	System.out.println(self.getId() + " Request resource id: " + event.getId());
-        	
-        	
-        	//currently the probe number is equal to the size of the cyclonPartners
-        	if(cyclonPartners.size() <= MUX_NUM_NODES) {
-        		resMap.put(event.getId(), new RequestResources(event.getNumCpus(), event.getMemoryInMbs(), 
-        														event.getTimeToHoldResource(), cyclonPartners.size()));
-	            for (Address dest : cyclonPartners) {
-	            	RequestResources.Request req = new RequestResources.Request(self, dest,
-	                        event.getNumCpus(), event.getMemoryInMbs(), event.getId());
-	                        trigger(req, networkPort);
-	            }
-        	}
-        	else {
-        		resMap.put(event.getId(), new RequestResources(event.getNumCpus(), event.getMemoryInMbs(), 
-						event.getTimeToHoldResource(), MUX_NUM_NODES));
-        		for (int i=0; i < MUX_NUM_NODES; i++) {
-        			int index = random.nextInt(cyclonPartners.size());
-        			Address dest = cyclonPartners.get(index);
-        			cyclonPartners.remove(index);
-        			RequestResources.Request req = new RequestResources.Request(self, dest,
-	                        event.getNumCpus(), event.getMemoryInMbs(), event.getId());
-	                        trigger(req, networkPort);
-        		}
-        	}
-            
-        }
-    };
-    Handler<TManSample> handleTManSample = new Handler<TManSample>() {
-        @Override
-        public void handle(TManSample event) {
-            // TODO:
-        	tmanPartners.clear();
-        	tmanPartners.addAll(event.getSample());
-        }
-    };
+	public ResourceManager() {
+
+		subscribe(handleInit, control);
+		subscribe(handleCyclonSample, cyclonSamplePort);
+		subscribe(handleRequestResource, indexPort);
+		subscribe(handleUpdateTimeout, timerPort);
+		subscribe(handleCheckTimeout, timerPort);
+		subscribe(handleResourceAllocationRequest, networkPort);
+		subscribe(handleResourceAllocationResponse, networkPort);
+		subscribe(handleAllocateResources, networkPort);
+		subscribe(handleTManSample, tmanPort);
+	}
+
+	Handler<RmInit> handleInit = new Handler<RmInit>() {
+		@Override
+		public void handle(RmInit init) {
+			self = init.getSelf();
+			configuration = init.getConfiguration();
+			random = new Random(init.getConfiguration().getSeed());
+			availableResources = init.getAvailableResources();
+			long period = configuration.getPeriod();
+			SchedulePeriodicTimeout rst = new SchedulePeriodicTimeout(period,
+					period);
+			rst.setTimeoutEvent(new UpdateTimeout(rst));
+
+			trigger(rst, timerPort);
+
+		}
+	};
+
+	Handler<UpdateTimeout> handleUpdateTimeout = new Handler<UpdateTimeout>() {
+		@Override
+		public void handle(UpdateTimeout event) {
+
+			// pick a random neighbour to ask for index updates from.
+			// You can change this policy if you want to.
+			// Maybe a gradient neighbour who is closer to the leader?
+			if (cyclonPartners.isEmpty()) {
+				return;
+			}
+			PeerDescriptor dest = cyclonPartners.get(random
+					.nextInt(cyclonPartners.size()));
+
+		}
+	};
+
+	Handler<Request> handleResourceAllocationRequest = new Handler<Request>() {
+		@Override
+		public void handle(Request event) {
+			// System.out.println(self.getId() + " : Received Request for " +
+			// event.getNumCpus() + " cpus and " + event.getAmountMemInMb()
+			// + " memInMb" + " from peer with id " +
+			// event.getSource().getId());
+			// System.out.println("I have " +
+			// availableResources.getNumFreeCpus() + " cpus and " +
+			// availableResources.getFreeMemInMbs());
+
+			// send a response event with a boolean value
+			boolean success = availableResources.isAvailable(
+					event.getNumCpus(), event.getAmountMemInMb());
+			Response response = new Response(self, event.getSource(), success,
+					queue.size(), event.getReqid());
+			trigger(response, networkPort);
+
+		}
+	};
+
+	Handler<Response> handleResourceAllocationResponse = new Handler<Response>() {
+		@Override
+		public void handle(Response event) {
+			// System.out.println(self + " Got response from " +
+			// event.getSource().getId());
+
+			RequestResources rr = requestResourcesMap.get(event.getReqid());
+			Response best = rr.findBestResponse(event);
+			if (--rr.pendingResponses == 0) {
+				Allocate al = new Allocate(self, best.getSource(),
+						rr.getNumCpus(), rr.getAmountMem(), rr.getTime());
+				trigger(al, networkPort);
+			}
+
+		}
+	};
+
+	Handler<Allocate> handleAllocateResources = new Handler<Allocate>() {
+
+		@Override
+		public void handle(Allocate arg0) {
+			boolean success = availableResources.isAvailable(arg0.getNumCpus(),
+					arg0.getAmountMem());
+			if (!success) {
+				queue.add(arg0);
+			} else {
+				availableResources.allocate(arg0.getNumCpus(),
+						arg0.getAmountMem());
+				ScheduleTimeout st = new ScheduleTimeout(arg0.getTime());
+				st.setTimeoutEvent(new JobDone(st, arg0.getNumCpus(), arg0
+						.getAmountMem()));
+				trigger(st, timerPort);
+			}
+
+		}
+	};
+
+	Handler<JobDone> handleCheckTimeout = new Handler<JobDone>() {
+
+		@Override
+		public void handle(JobDone arg0) {
+			availableResources.release(arg0.getNumCpus(), arg0.getAmountMem());
+
+			if (!queue.isEmpty()) {
+
+				Allocate al = queue.poll();
+
+				boolean success = availableResources.isAvailable(
+						al.getNumCpus(), al.getAmountMem());
+				if (success) {
+					availableResources.allocate(al.getNumCpus(),
+							al.getAmountMem());
+					ScheduleTimeout st = new ScheduleTimeout(al.getTime());
+					st.setTimeoutEvent(new JobDone(st, al.getNumCpus(), al
+							.getAmountMem()));
+					trigger(st, timerPort);
+				}
+			}
+		}
+	};
+
+	Handler<CyclonSample> handleCyclonSample = new Handler<CyclonSample>() {
+		@Override
+		public void handle(CyclonSample event) {
+			// System.out.println("id " + self.getId() + " received samples: " +
+			// event.getSample().size());
+
+			// receive a new list of cyclonPartners
+			cyclonPartners.clear();
+			cyclonPartners.addAll(event.getSample());
+
+			if (event.getSample().size() > 0) {
+				System.out.print("My neigbours are [ ");
+				for (PeerDescriptor peer : cyclonPartners) {
+					System.out.print(peer.getAddress().getId() + " ");
+					System.out.print("In ResourceManager " + peer.getAv().getNumFreeCpus() + " ");
+
+				}
+				System.out.print("]\n\n");
+			}
+
+		}
+	};
+
+	Handler<RequestResource> handleRequestResource = new Handler<RequestResource>() {
+		@Override
+		public void handle(RequestResource event) {
+
+			// System.out.println("Allocate resources: " + event.getId() + " " +
+			// event.getNumCpus() + " + " + event.getMemoryInMbs());
+			// TODO: Ask for resources from cyclonPartners
+			// by sending a ResourceRequest
+
+			System.out.println(self.getId() + " Request resource id: "
+					+ event.getId());
+
+			// currently the probe number is equal to the size of the
+			// cyclonPartners
+			if (cyclonPartners.size() <= MUX_NUM_NODES) {
+				requestResourcesMap
+						.put(event.getId(),
+								new RequestResources(event.getNumCpus(), event
+										.getMemoryInMbs(), event
+										.getTimeToHoldResource(),
+										cyclonPartners.size()));
+				for (PeerDescriptor dest : cyclonPartners) {
+					Request req = new Request(self, dest.getAddress(),
+							event.getNumCpus(), event.getMemoryInMbs(),
+							event.getId());
+					trigger(req, networkPort);
+				}
+			} else {
+				requestResourcesMap.put(
+						event.getId(),
+						new RequestResources(event.getNumCpus(), event
+								.getMemoryInMbs(), event
+								.getTimeToHoldResource(), MUX_NUM_NODES));
+				for (int i = 0; i < MUX_NUM_NODES; i++) {
+					int index = random.nextInt(cyclonPartners.size());
+					PeerDescriptor dest = cyclonPartners.get(index);
+					cyclonPartners.remove(index);
+					Request req = new Request(self, dest.getAddress(),
+							event.getNumCpus(), event.getMemoryInMbs(),
+							event.getId());
+					trigger(req, networkPort);
+				}
+			}
+
+		}
+	};
+	Handler<TManSample> handleTManSample = new Handler<TManSample>() {
+		@Override
+		public void handle(TManSample event) {
+			// TODO:
+			tmanPartners.clear();
+			tmanPartners.addAll(event.getSample());
+		}
+	};
 
 }

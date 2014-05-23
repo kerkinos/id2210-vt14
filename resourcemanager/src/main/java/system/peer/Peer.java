@@ -17,15 +17,16 @@ import se.sics.kompics.p2p.bootstrap.PeerEntry;
 import se.sics.kompics.p2p.bootstrap.client.BootstrapClient;
 import se.sics.kompics.p2p.bootstrap.client.BootstrapClientInit;
 import se.sics.kompics.timer.Timer;
-
 import resourcemanager.system.peer.rm.ResourceManager;
 import resourcemanager.system.peer.rm.RmInit;
 import common.configuration.RmConfiguration;
 import common.configuration.CyclonConfiguration;
+import common.configuration.TManConfiguration;
 import common.peer.AvailableResources;
 import common.peer.PeerDescriptor;
 import cyclon.system.peer.cyclon.*;
 import tman.system.peer.tman.TMan;
+import tman.system.peer.tman.TManInit;
 import tman.system.peer.tman.TManSamplePort;
 
 
@@ -78,12 +79,15 @@ public final class Peer extends ComponentDefinition {
 		public void handle(PeerInit init) {
 			self = init.getPeerSelf();
 			CyclonConfiguration cyclonConfiguration = init.getCyclonConfiguration();
+			TManConfiguration tmanConfiguration = init.getTManConfiguration();
 			rmConfiguration = init.getApplicationConfiguration();
 			bootstrapRequestPeerCount = cyclonConfiguration.getBootstrapRequestPeerCount();
 
                         availableResources = init.getAvailableResources();
                         
 			trigger(new CyclonInit(cyclonConfiguration, availableResources), cyclon.getControl());
+			trigger(new TManInit(self, tmanConfiguration, availableResources), tman.getControl());
+
 			trigger(new BootstrapClientInit(self, init.getBootstrapConfiguration()), bootstrap.getControl());
 			BootstrapRequest request = new BootstrapRequest("Cyclon", bootstrapRequestPeerCount);
 			trigger(request, bootstrap.getPositive(P2pBootstrap.class));
@@ -114,10 +118,10 @@ public final class Peer extends ComponentDefinition {
 	Handler<JoinCompleted> handleJoinCompleted = new Handler<JoinCompleted>() {
                 @Override
 		public void handle(JoinCompleted event) {
-			trigger(new BootstrapCompleted("Cyclon", new PeerDescriptor(self,
-                                availableResources.getNumFreeCpus(),
-                                availableResources.getFreeMemInMbs())), 
-                                bootstrap.getPositive(P2pBootstrap.class));
+                	trigger(new BootstrapCompleted("Cyclon", new PeerDescriptor(self,
+                            availableResources.getNumFreeCpus(),
+                            availableResources.getFreeMemInMbs())), 
+                            bootstrap.getPositive(P2pBootstrap.class));
 			trigger(new RmInit(self, rmConfiguration, availableResources), rm.getControl());
 		}
 	};

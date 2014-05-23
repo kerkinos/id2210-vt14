@@ -1,14 +1,17 @@
 package simulator.snapshot;
 
 import common.peer.AvailableResources;
+
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
+
+import cyclon.system.peer.cyclon.PeerDescriptor;
 import se.sics.kompics.address.Address;
 
 public class Snapshot {
 
-    private static ConcurrentHashMap<Address, PeerInfo> peers = 
-            new ConcurrentHashMap<Address, PeerInfo>();
+    private static ConcurrentHashMap<PeerDescriptor, PeerInfo> peers = 
+            new ConcurrentHashMap<PeerDescriptor, PeerInfo>();
     private static int counter = 0;
     private static String FILENAME = "search.out";
 
@@ -18,7 +21,7 @@ public class Snapshot {
     }
 
 
-    public static void addPeer(Address address, AvailableResources availableResources) {
+    public static void addPeer(PeerDescriptor address, AvailableResources availableResources) {
         peers.put(address, new PeerInfo(availableResources));
     }
 
@@ -29,7 +32,7 @@ public class Snapshot {
 
 
 
-    public static void updateNeighbours(Address address, ArrayList<Address> partners) {
+    public static void updateNeighbours(PeerDescriptor address, ArrayList<Address> partners) {
         PeerInfo peerInfo = peers.get(address);
 
         if (peerInfo == null) {

@@ -1,13 +1,16 @@
 package simulator.snapshot;
 
 import common.peer.AvailableResources;
+
 import java.util.ArrayList;
+
+import cyclon.system.peer.cyclon.PeerDescriptor;
 import se.sics.kompics.address.Address;
 
 public class PeerInfo {
 
     private ArrayList<Address> neighbours;
-    private ArrayList<Address> tmanPartners;
+    private ArrayList<PeerDescriptor> tmanPartners;
     
     private final AvailableResources availableResources;
 
@@ -32,11 +35,11 @@ public class PeerInfo {
         return new ArrayList<Address>(neighbours);
     }
 
-	public ArrayList<Address> getTmanPartners() {
+	public ArrayList<PeerDescriptor> getTmanPartners() {
 		return tmanPartners;
 	}
 
-	public void setTmanPartners(ArrayList<Address> tmanPartners) {
+	public void setTmanPartners(ArrayList<PeerDescriptor> tmanPartners) {
 		this.tmanPartners = tmanPartners;
 	}
 
