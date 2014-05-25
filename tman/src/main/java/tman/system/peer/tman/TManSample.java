@@ -10,18 +10,27 @@ import se.sics.kompics.address.Address;
 
 
 public class TManSample extends Event {
-	ArrayList<PeerDescriptor> partners = new ArrayList<PeerDescriptor>();
+	ArrayList<PeerDescriptor> partnersByRes = new ArrayList<PeerDescriptor>();
+	ArrayList<PeerDescriptor> partnersByCpu = new ArrayList<PeerDescriptor>();
+	ArrayList<PeerDescriptor> partnersByMem = new ArrayList<PeerDescriptor>();
 
-
-	public TManSample(ArrayList<PeerDescriptor> partners) {
-		this.partners = partners;
+	public TManSample(ArrayList<PeerDescriptor> partnersByRes, ArrayList<PeerDescriptor> partnersByCpu,
+			ArrayList<PeerDescriptor> partnersByMem) {
+		this.partnersByRes= partnersByRes;
+		this.partnersByCpu = partnersByCpu;
+		this.partnersByMem = partnersByMem;
 	}
         
-	public TManSample() {
+	public ArrayList<PeerDescriptor> getPartnersByRes() {
+		return partnersByRes;
 	}
 
-
-	public ArrayList<PeerDescriptor> getSample() {
-		return this.partners;
+	public ArrayList<PeerDescriptor> getPartnersByCpu() {
+		return partnersByCpu;
 	}
+
+	public ArrayList<PeerDescriptor> getPartnersByMem() {
+		return partnersByMem;
+	}
+
 }

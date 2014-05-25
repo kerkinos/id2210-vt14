@@ -202,7 +202,7 @@ public final class Cyclon extends ComponentDefinition {
 //			}
 //			partners.add(desc.getAddress());
 //		}
-		System.out.println("In Cyclon: id " + self.getId() + " cpus are " + availableResources.getNumFreeCpus());
+		//System.out.println("In Cyclon: id " + self.getId() + " cpus are " + availableResources.getNumFreeCpus());
 		//return partners;
 		return 	partnersDescriptors;
 	}

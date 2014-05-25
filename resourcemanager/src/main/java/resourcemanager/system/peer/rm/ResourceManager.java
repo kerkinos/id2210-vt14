@@ -21,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import resourcemanager.system.peer.rm.JobDone;
-
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Negative;
@@ -39,7 +38,6 @@ import tman.system.peer.tman.TManSamplePort;
 /**
  * Should have some comments here.
  * 
- * @author jdowling
  */
 public final class ResourceManager extends ComponentDefinition {
 
@@ -52,18 +50,23 @@ public final class ResourceManager extends ComponentDefinition {
 	Positive<CyclonSamplePort> cyclonSamplePort = requires(CyclonSamplePort.class);
 	Positive<TManSamplePort> tmanPort = requires(TManSamplePort.class);
 	ArrayList<PeerDescriptor> cyclonPartners = new ArrayList<PeerDescriptor>();
-	ArrayList<PeerDescriptor> tmanPartners = new ArrayList<PeerDescriptor>();
-
+	ArrayList<PeerDescriptor> tmanPartnersByRes = new ArrayList<PeerDescriptor>();
+	ArrayList<PeerDescriptor> tmanPartnersByCpu = new ArrayList<PeerDescriptor>();
+	ArrayList<PeerDescriptor> tmanPartnersByMem = new ArrayList<PeerDescriptor>();
+	
 	private Address self;
 	private RmConfiguration configuration;
 	private Random random;
 	private AvailableResources availableResources;
-	private static final int MUX_NUM_NODES = 4;
+	private static final int MAX_NUM_NODES = 4;
+	
+	private long startTime, endTime, averageTime;
 
 	// queue where we put incoming requests for resources
 
 	private Queue<Allocate> queue = new LinkedList<Allocate>();
 	private Map<Long, RequestResources> requestResourcesMap = new HashMap<Long, RequestResources>();
+	private Map<Long, Long> timePerRequest = new HashMap<Long, Long>();
 
 	Comparator<PeerDescriptor> peerAgeComparator = new Comparator<PeerDescriptor>() {
 		@Override
@@ -79,10 +82,10 @@ public final class ResourceManager extends ComponentDefinition {
 	public ResourceManager() {
 
 		subscribe(handleInit, control);
-		subscribe(handleCyclonSample, cyclonSamplePort);
+		//subscribe(handleCyclonSample, cyclonSamplePort);
 		subscribe(handleRequestResource, indexPort);
 		subscribe(handleUpdateTimeout, timerPort);
-		subscribe(handleCheckTimeout, timerPort);
+		subscribe(handleJobDone, timerPort);
 		subscribe(handleResourceAllocationRequest, networkPort);
 		subscribe(handleResourceAllocationResponse, networkPort);
 		subscribe(handleAllocateResources, networkPort);
@@ -152,6 +155,13 @@ public final class ResourceManager extends ComponentDefinition {
 			RequestResources rr = requestResourcesMap.get(event.getReqid());
 			Response best = rr.findBestResponse(event);
 			if (--rr.pendingResponses == 0) {
+				endTime = System.currentTimeMillis();
+				timePerRequest.put(event.getReqid(), (endTime - startTime));
+				System.out.println(" Size " + timePerRequest.size());
+				if(timePerRequest.size() == 100) {
+					averageTime = getAverageTime(timePerRequest);	
+					System.out.println("----------Average Time--------- = " + averageTime);
+				}	
 				Allocate al = new Allocate(self, best.getSource(),
 						rr.getNumCpus(), rr.getAmountMem(), rr.getTime());
 				trigger(al, networkPort);
@@ -159,6 +169,14 @@ public final class ResourceManager extends ComponentDefinition {
 
 		}
 	};
+	
+	long getAverageTime(Map<Long, Long> timePerRequest) {
+		long sum = 0;
+		for(Long l : timePerRequest.values()) {
+			sum += l;
+		}
+		return sum / timePerRequest.size();
+	}
 
 	Handler<Allocate> handleAllocateResources = new Handler<Allocate>() {
 
@@ -180,7 +198,7 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 	};
 
-	Handler<JobDone> handleCheckTimeout = new Handler<JobDone>() {
+	Handler<JobDone> handleJobDone = new Handler<JobDone>() {
 
 		@Override
 		public void handle(JobDone arg0) {
@@ -235,20 +253,19 @@ public final class ResourceManager extends ComponentDefinition {
 			// event.getNumCpus() + " + " + event.getMemoryInMbs());
 			// TODO: Ask for resources from cyclonPartners
 			// by sending a ResourceRequest
+			startTime = System.currentTimeMillis();
 
 			System.out.println(self.getId() + " Request resource id: "
 					+ event.getId());
 
-			// currently the probe number is equal to the size of the
-			// cyclonPartners
-			if (cyclonPartners.size() <= MUX_NUM_NODES) {
+			if (tmanPartnersByRes.size() <= MAX_NUM_NODES) {
 				requestResourcesMap
 						.put(event.getId(),
 								new RequestResources(event.getNumCpus(), event
 										.getMemoryInMbs(), event
 										.getTimeToHoldResource(),
-										cyclonPartners.size()));
-				for (PeerDescriptor dest : cyclonPartners) {
+										tmanPartnersByRes.size()));
+				for (PeerDescriptor dest : tmanPartnersByRes) {
 					Request req = new Request(self, dest.getAddress(),
 							event.getNumCpus(), event.getMemoryInMbs(),
 							event.getId());
@@ -259,26 +276,30 @@ public final class ResourceManager extends ComponentDefinition {
 						event.getId(),
 						new RequestResources(event.getNumCpus(), event
 								.getMemoryInMbs(), event
-								.getTimeToHoldResource(), MUX_NUM_NODES));
-				for (int i = 0; i < MUX_NUM_NODES; i++) {
-					int index = random.nextInt(cyclonPartners.size());
-					PeerDescriptor dest = cyclonPartners.get(index);
-					cyclonPartners.remove(index);
+								.getTimeToHoldResource(), MAX_NUM_NODES));
+				for (int i = 0; i < MAX_NUM_NODES; i++) {
+					int index = random.nextInt(tmanPartnersByRes.size());
+					PeerDescriptor dest = tmanPartnersByRes.get(index);
+					tmanPartnersByRes.remove(index);
 					Request req = new Request(self, dest.getAddress(),
 							event.getNumCpus(), event.getMemoryInMbs(),
 							event.getId());
 					trigger(req, networkPort);
 				}
 			}
-
 		}
 	};
+	
 	Handler<TManSample> handleTManSample = new Handler<TManSample>() {
 		@Override
 		public void handle(TManSample event) {
 			// TODO:
-			tmanPartners.clear();
-			tmanPartners.addAll(event.getSample());
+			tmanPartnersByRes.clear();
+			tmanPartnersByCpu.clear();
+			tmanPartnersByMem.clear();
+			tmanPartnersByRes.addAll(event.getPartnersByRes());
+			tmanPartnersByCpu.addAll(event.getPartnersByRes());
+			tmanPartnersByMem.addAll(event.getPartnersByRes());
 		}
 	};
 

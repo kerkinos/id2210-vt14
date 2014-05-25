@@ -28,13 +28,31 @@ public class Snapshot {
 	}
 
 
-	public static void updateTManPartners(PeerDescriptor address, ArrayList<PeerDescriptor> partners) {
+	public static void updateTManPartnersByRes(PeerDescriptor address, ArrayList<PeerDescriptor> partners) {
 		PeerInfo peerInfo = peers.get(address);
 		
 		if (peerInfo == null)
 			return;
 		
-		peerInfo.updateTManPartners(partners);
+		peerInfo.updateTManPartnersByRes(partners);
+	}
+	
+	public static void updateTManPartnersByCpu(PeerDescriptor address, ArrayList<PeerDescriptor> partners) {
+		PeerInfo peerInfo = peers.get(address);
+		
+		if (peerInfo == null)
+			return;
+		
+		peerInfo.updateTManPartnersByCpu(partners);
+	}
+	
+	public static void updateTManPartnersByMem(PeerDescriptor address, ArrayList<PeerDescriptor> partners) {
+		PeerInfo peerInfo = peers.get(address);
+		
+		if (peerInfo == null)
+			return;
+		
+		peerInfo.updateTManPartnersByMem(partners);
 	}
 	
 
@@ -81,7 +99,7 @@ public class Snapshot {
 		
 			str += "peer: " + peer;
 			str += ", cyclon parters: " + peerInfo.getCyclonPartners();
-			str += ", tman parters: " + peerInfo.getTManPartners();
+			str += ", tman partersByRes: " + peerInfo.getTManPartnersByRes();
 			str += "\n";
 		}
 		
