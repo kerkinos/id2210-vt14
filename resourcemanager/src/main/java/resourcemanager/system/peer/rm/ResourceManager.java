@@ -50,6 +50,7 @@ public final class ResourceManager extends ComponentDefinition {
 	Positive<CyclonSamplePort> cyclonSamplePort = requires(CyclonSamplePort.class);
 	Positive<TManSamplePort> tmanPort = requires(TManSamplePort.class);
 	ArrayList<PeerDescriptor> cyclonPartners = new ArrayList<PeerDescriptor>();
+	ArrayList<PeerDescriptor> tmanPartners = new ArrayList<PeerDescriptor>();
 	ArrayList<PeerDescriptor> tmanPartnersByRes = new ArrayList<PeerDescriptor>();
 	ArrayList<PeerDescriptor> tmanPartnersByCpu = new ArrayList<PeerDescriptor>();
 	ArrayList<PeerDescriptor> tmanPartnersByMem = new ArrayList<PeerDescriptor>();
@@ -66,7 +67,7 @@ public final class ResourceManager extends ComponentDefinition {
 
 	private Queue<Allocate> queue = new LinkedList<Allocate>();
 	private Map<Long, RequestResources> requestResourcesMap = new HashMap<Long, RequestResources>();
-	private Map<Long, Long> timePerRequest = new HashMap<Long, Long>();
+	private static Map<Long, Long> timePerRequest = new HashMap<Long, Long>();
 
 	Comparator<PeerDescriptor> peerAgeComparator = new Comparator<PeerDescriptor>() {
 		@Override
@@ -151,17 +152,13 @@ public final class ResourceManager extends ComponentDefinition {
 		public void handle(Response event) {
 			// System.out.println(self + " Got response from " +
 			// event.getSource().getId());
-
+			System.out.println("Got allocate event for requestId " + event.getReqid());
 			RequestResources rr = requestResourcesMap.get(event.getReqid());
 			Response best = rr.findBestResponse(event);
 			if (--rr.pendingResponses == 0) {
 				endTime = System.currentTimeMillis();
 				timePerRequest.put(event.getReqid(), (endTime - startTime));
-				System.out.println(" Size " + timePerRequest.size());
-				if(timePerRequest.size() == 100) {
-					averageTime = getAverageTime(timePerRequest);	
-					System.out.println("----------Average Time--------- = " + averageTime);
-				}	
+				averageTime = getAverageTime();					
 				Allocate al = new Allocate(self, best.getSource(),
 						rr.getNumCpus(), rr.getAmountMem(), rr.getTime());
 				trigger(al, networkPort);
@@ -170,7 +167,7 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 	};
 	
-	long getAverageTime(Map<Long, Long> timePerRequest) {
+	static long getAverageTime() {
 		long sum = 0;
 		for(Long l : timePerRequest.values()) {
 			sum += l;
@@ -257,15 +254,25 @@ public final class ResourceManager extends ComponentDefinition {
 
 			System.out.println(self.getId() + " Request resource id: "
 					+ event.getId());
+			
+			if( (event.getMemoryInMbs() * event.getNumCpus()) != 0 ) {
+				tmanPartners = tmanPartnersByRes;
+			}
+			else if(event.getMemoryInMbs() == 0) {
+				tmanPartners = tmanPartnersByCpu;
+			}
+			else if(event.getNumCpus() == 0) {
+				tmanPartners = tmanPartnersByMem;
+			}
 
-			if (tmanPartnersByRes.size() <= MAX_NUM_NODES) {
+			if (tmanPartners.size() <= MAX_NUM_NODES) {
 				requestResourcesMap
 						.put(event.getId(),
 								new RequestResources(event.getNumCpus(), event
 										.getMemoryInMbs(), event
 										.getTimeToHoldResource(),
-										tmanPartnersByRes.size()));
-				for (PeerDescriptor dest : tmanPartnersByRes) {
+										tmanPartners.size()));
+				for (PeerDescriptor dest : tmanPartners) {
 					Request req = new Request(self, dest.getAddress(),
 							event.getNumCpus(), event.getMemoryInMbs(),
 							event.getId());
@@ -278,9 +285,9 @@ public final class ResourceManager extends ComponentDefinition {
 								.getMemoryInMbs(), event
 								.getTimeToHoldResource(), MAX_NUM_NODES));
 				for (int i = 0; i < MAX_NUM_NODES; i++) {
-					int index = random.nextInt(tmanPartnersByRes.size());
-					PeerDescriptor dest = tmanPartnersByRes.get(index);
-					tmanPartnersByRes.remove(index);
+					int index = random.nextInt(tmanPartners.size());
+					PeerDescriptor dest = tmanPartners.get(index);
+					tmanPartners.remove(index);
 					Request req = new Request(self, dest.getAddress(),
 							event.getNumCpus(), event.getMemoryInMbs(),
 							event.getId());
@@ -298,8 +305,8 @@ public final class ResourceManager extends ComponentDefinition {
 			tmanPartnersByCpu.clear();
 			tmanPartnersByMem.clear();
 			tmanPartnersByRes.addAll(event.getPartnersByRes());
-			tmanPartnersByCpu.addAll(event.getPartnersByRes());
-			tmanPartnersByMem.addAll(event.getPartnersByRes());
+			tmanPartnersByCpu.addAll(event.getPartnersByCpu());
+			tmanPartnersByMem.addAll(event.getPartnersByMem());
 		}
 	};
 
