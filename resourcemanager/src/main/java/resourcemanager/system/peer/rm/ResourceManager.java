@@ -50,6 +50,7 @@ public final class ResourceManager extends ComponentDefinition {
 	Positive<CyclonSamplePort> cyclonSamplePort = requires(CyclonSamplePort.class);
 	Positive<TManSamplePort> tmanPort = requires(TManSamplePort.class);
 	ArrayList<PeerDescriptor> cyclonPartners = new ArrayList<PeerDescriptor>();
+	ArrayList<PeerDescriptor> tmanPartners = new ArrayList<PeerDescriptor>();
 	ArrayList<PeerDescriptor> tmanPartnersByRes = new ArrayList<PeerDescriptor>();
 	ArrayList<PeerDescriptor> tmanPartnersByCpu = new ArrayList<PeerDescriptor>();
 	ArrayList<PeerDescriptor> tmanPartnersByMem = new ArrayList<PeerDescriptor>();
@@ -154,13 +155,13 @@ public final class ResourceManager extends ComponentDefinition {
 		public void handle(Response event) {
 			// System.out.println(self + " Got response from " +
 			// event.getSource().getId());
-
+			System.out.println("Got allocate event for requestId " + event.getReqid());
 			RequestResources rr = requestResourcesMap.get(event.getReqid());
 			Response best = rr.findBestResponse(event);
 			if (--rr.pendingResponses == 0) {
 				endTime = System.currentTimeMillis();
 				timePerRequest.put(event.getReqid(), (endTime - startTime));
-				averageTime = getAverageTime();	
+				averageTime = getAverageTime();					
 				Allocate al = new Allocate(self, best.getSource(),
 						rr.getNumCpus(), rr.getAmountMem(), rr.getTime());
 				trigger(al, networkPort);
@@ -169,7 +170,7 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 	};
 	
-	public static long getAverageTime() {
+	static long getAverageTime() {
 		long sum = 0;
 		for(Long l : timePerRequest.values()) {
 			sum += l;
@@ -259,6 +260,16 @@ public final class ResourceManager extends ComponentDefinition {
 
 			System.out.println(self.getId() + " Request resource id: "
 					+ event.getId());
+			
+			if( (event.getMemoryInMbs() * event.getNumCpus()) != 0 ) {
+				tmanPartners = tmanPartnersByRes;
+			}
+			else if(event.getMemoryInMbs() == 0) {
+				tmanPartners = tmanPartnersByCpu;
+			}
+			else if(event.getNumCpus() == 0) {
+				tmanPartners = tmanPartnersByMem;
+			}
 
 //			if (tmanPartnersByRes.size() <= MAX_NUM_NODES) {
 //				requestResourcesMap
@@ -329,8 +340,8 @@ public final class ResourceManager extends ComponentDefinition {
 			tmanPartnersByCpu.clear();
 			tmanPartnersByMem.clear();
 			tmanPartnersByRes.addAll(event.getPartnersByRes());
-			tmanPartnersByCpu.addAll(event.getPartnersByRes());
-			tmanPartnersByMem.addAll(event.getPartnersByRes());
+			tmanPartnersByCpu.addAll(event.getPartnersByCpu());
+			tmanPartnersByMem.addAll(event.getPartnersByMem());
 		}
 	};
 

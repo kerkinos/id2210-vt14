@@ -5,6 +5,7 @@ import common.simulation.SimulatorPort;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import resourcemanager.system.peer.rm.ResourceManager;
 import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
@@ -56,6 +57,8 @@ public final class DataCenterSimulator extends ComponentDefinition {
     private ConsistentHashtable<Long> ringNodes;
     private AsIpGenerator ipGenerator = AsIpGenerator.getInstance(125);
     
+    private int counter = 0;
+    
     Random r = new Random(System.currentTimeMillis());
 	
     public DataCenterSimulator() {
@@ -95,7 +98,6 @@ public final class DataCenterSimulator extends ComponentDefinition {
     Handler<RequestResource> handleRequestResource = new Handler<RequestResource>() {
         @Override
         public void handle(RequestResource event) {
-
 //            System.out.println("------------------" + event.getId());
 //            Long successor = ringNodes.getNode(event.getId());
 //            Long successortest = ringNodes.getNode(Long.parseLong("4"));
@@ -108,7 +110,11 @@ public final class DataCenterSimulator extends ComponentDefinition {
         	Random generator = new Random();
         	Object[] peerValues =  peers.values().toArray();
         	Component peer = (Component) peerValues[generator.nextInt(peerValues.length)];
-        	trigger( event, peer.getNegative(RmPort.class)); 
+        	trigger( event, peer.getNegative(RmPort.class));
+        	
+        	if (++counter == 50){
+        		System.out.println("Average = "  );	
+        	}     	
         }
     };
 	
@@ -173,7 +179,7 @@ public final class DataCenterSimulator extends ComponentDefinition {
 
 	
     private void createAndStartNewPeer(long id, int numCpus, int memInMb) {
-    	System.out.println("Starting a new peer with " + numCpus + " " + memInMb);
+    	//System.out.println("Starting a new peer with " + numCpus + " " + memInMb);
         Component peer = create(Peer.class);
         InetAddress ip = ipGenerator.generateIP();
         Address address = new Address(ip, 8058, (int) id);
