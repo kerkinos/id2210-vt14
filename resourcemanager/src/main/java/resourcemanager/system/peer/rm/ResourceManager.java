@@ -58,7 +58,7 @@ public final class ResourceManager extends ComponentDefinition {
 	private RmConfiguration configuration;
 	private Random random;
 	private AvailableResources availableResources;
-	private static final int MAX_NUM_NODES = 4;
+	private static final int MAX_NUM_NODES = 8;
 	
 	private long startTime, endTime, averageTime;
 
@@ -66,7 +66,7 @@ public final class ResourceManager extends ComponentDefinition {
 
 	private Queue<Allocate> queue = new LinkedList<Allocate>();
 	private Map<Long, RequestResources> requestResourcesMap = new HashMap<Long, RequestResources>();
-	private Map<Long, Long> timePerRequest = new HashMap<Long, Long>();
+	private static Map<Long, Long> timePerRequest = new HashMap<Long, Long>();
 
 	Comparator<PeerDescriptor> peerAgeComparator = new Comparator<PeerDescriptor>() {
 		@Override
@@ -82,14 +82,14 @@ public final class ResourceManager extends ComponentDefinition {
 	public ResourceManager() {
 
 		subscribe(handleInit, control);
-		//subscribe(handleCyclonSample, cyclonSamplePort);
+		subscribe(handleCyclonSample, cyclonSamplePort);
 		subscribe(handleRequestResource, indexPort);
 		subscribe(handleUpdateTimeout, timerPort);
 		subscribe(handleJobDone, timerPort);
 		subscribe(handleResourceAllocationRequest, networkPort);
 		subscribe(handleResourceAllocationResponse, networkPort);
 		subscribe(handleAllocateResources, networkPort);
-		subscribe(handleTManSample, tmanPort);
+//		subscribe(handleTManSample, tmanPort);
 	}
 
 	Handler<RmInit> handleInit = new Handler<RmInit>() {
@@ -116,6 +116,9 @@ public final class ResourceManager extends ComponentDefinition {
 			// pick a random neighbour to ask for index updates from.
 			// You can change this policy if you want to.
 			// Maybe a gradient neighbour who is closer to the leader?
+			
+			System.out.println(averageTime);
+
 			if (cyclonPartners.isEmpty()) {
 				return;
 			}
@@ -157,11 +160,7 @@ public final class ResourceManager extends ComponentDefinition {
 			if (--rr.pendingResponses == 0) {
 				endTime = System.currentTimeMillis();
 				timePerRequest.put(event.getReqid(), (endTime - startTime));
-				System.out.println(" Size " + timePerRequest.size());
-				if(timePerRequest.size() == 100) {
-					averageTime = getAverageTime(timePerRequest);	
-					System.out.println("----------Average Time--------- = " + averageTime);
-				}	
+				averageTime = getAverageTime();	
 				Allocate al = new Allocate(self, best.getSource(),
 						rr.getNumCpus(), rr.getAmountMem(), rr.getTime());
 				trigger(al, networkPort);
@@ -170,11 +169,14 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 	};
 	
-	long getAverageTime(Map<Long, Long> timePerRequest) {
+	public static long getAverageTime() {
 		long sum = 0;
 		for(Long l : timePerRequest.values()) {
 			sum += l;
 		}
+		if(timePerRequest.size()==0){
+			return 0;
+		}else
 		return sum / timePerRequest.size();
 	}
 
@@ -232,15 +234,15 @@ public final class ResourceManager extends ComponentDefinition {
 			cyclonPartners.clear();
 			cyclonPartners.addAll(event.getSample());
 
-			if (event.getSample().size() > 0) {
-				System.out.print("My neigbours are [ ");
-				for (PeerDescriptor peer : cyclonPartners) {
-					System.out.print(peer.getAddress().getId() + " ");
-					System.out.print("In ResourceManager " + peer.getAv().getNumFreeCpus() + " ");
-
-				}
-				System.out.print("]\n\n");
-			}
+//			if (event.getSample().size() > 0) {
+//				System.out.print("My neigbours are [ ");
+//				for (PeerDescriptor peer : cyclonPartners) {
+//					System.out.print(peer.getAddress().getId() + " ");
+//					System.out.print("In ResourceManager " + peer.getAv().getNumFreeCpus() + " ");
+//
+//				}
+//				System.out.print("]\n\n");
+//			}
 
 		}
 	};
@@ -258,14 +260,42 @@ public final class ResourceManager extends ComponentDefinition {
 			System.out.println(self.getId() + " Request resource id: "
 					+ event.getId());
 
-			if (tmanPartnersByRes.size() <= MAX_NUM_NODES) {
+//			if (tmanPartnersByRes.size() <= MAX_NUM_NODES) {
+//				requestResourcesMap
+//						.put(event.getId(),
+//								new RequestResources(event.getNumCpus(), event
+//										.getMemoryInMbs(), event
+//										.getTimeToHoldResource(),
+//										tmanPartnersByRes.size()));
+//				for (PeerDescriptor dest : tmanPartnersByRes) {
+//					Request req = new Request(self, dest.getAddress(),
+//							event.getNumCpus(), event.getMemoryInMbs(),
+//							event.getId());
+//					trigger(req, networkPort);
+//				}
+//			} else {
+//				requestResourcesMap.put(
+//						event.getId(),
+//						new RequestResources(event.getNumCpus(), event
+//								.getMemoryInMbs(), event
+//								.getTimeToHoldResource(), MAX_NUM_NODES));
+//				for (int i = 0; i < MAX_NUM_NODES; i++) {
+//					int index = random.nextInt(tmanPartnersByRes.size());
+//					PeerDescriptor dest = tmanPartnersByRes.get(index);
+//					tmanPartnersByRes.remove(index);
+//					Request req = new Request(self, dest.getAddress(),
+//							event.getNumCpus(), event.getMemoryInMbs(),
+//							event.getId());
+//					trigger(req, networkPort);
+//				}
+			if (cyclonPartners.size() <= MAX_NUM_NODES) {
 				requestResourcesMap
 						.put(event.getId(),
 								new RequestResources(event.getNumCpus(), event
 										.getMemoryInMbs(), event
 										.getTimeToHoldResource(),
-										tmanPartnersByRes.size()));
-				for (PeerDescriptor dest : tmanPartnersByRes) {
+										cyclonPartners.size()));
+				for (PeerDescriptor dest : cyclonPartners) {
 					Request req = new Request(self, dest.getAddress(),
 							event.getNumCpus(), event.getMemoryInMbs(),
 							event.getId());
@@ -278,14 +308,15 @@ public final class ResourceManager extends ComponentDefinition {
 								.getMemoryInMbs(), event
 								.getTimeToHoldResource(), MAX_NUM_NODES));
 				for (int i = 0; i < MAX_NUM_NODES; i++) {
-					int index = random.nextInt(tmanPartnersByRes.size());
-					PeerDescriptor dest = tmanPartnersByRes.get(index);
-					tmanPartnersByRes.remove(index);
+					int index = random.nextInt(cyclonPartners.size());
+					PeerDescriptor dest = cyclonPartners.get(index);
+					cyclonPartners.remove(index);
 					Request req = new Request(self, dest.getAddress(),
 							event.getNumCpus(), event.getMemoryInMbs(),
 							event.getId());
 					trigger(req, networkPort);
 				}
+
 			}
 		}
 	};

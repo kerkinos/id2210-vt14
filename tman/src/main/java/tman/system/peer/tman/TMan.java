@@ -147,9 +147,9 @@ public final class TMan extends ComponentDefinition {
 //                }
                 
                 PeerDescriptor selectedPeerByRes, selectedPeerByCpu, selectedPeerByMem;
-                selectedPeerByRes = selectPeer(tmanPartnersByRes.size() / 2, tmanPartnersByRes);
-                selectedPeerByCpu = selectPeer(tmanPartnersByCpus.size() /2, tmanPartnersByCpus);
-                selectedPeerByMem = selectPeer(tmanPartnersByMem.size() /2, tmanPartnersByMem);
+                selectedPeerByRes = selectPeer(tmanPartnersByRes.size() / 3, tmanPartnersByRes);
+                selectedPeerByCpu = selectPeer(tmanPartnersByCpus.size() / 3, tmanPartnersByCpus);
+                selectedPeerByMem = selectPeer(tmanPartnersByMem.size() / 3, tmanPartnersByMem);
 
 //                System.out.println("Selected peer is " + selectedPeerByRes + " " + selectedPeerByRes.getAv().getNumFreeCpus() +
 //                			selectedPeerByRes.getAv().getFreeMemInMbs());
@@ -167,8 +167,8 @@ public final class TMan extends ComponentDefinition {
                 }
                  
                 Collections.sort(tmanPartnersByRes, new ComparatorByResources(new PeerDescriptor(selectedPeerByRes.getAddress(), selectedPeerByRes.getAv())));
-                Collections.sort(tmanPartnersByCpus, new ComparatorByResources(new PeerDescriptor(selectedPeerByCpu.getAddress(), selectedPeerByCpu.getAv())));
-                Collections.sort(tmanPartnersByMem, new ComparatorByResources(new PeerDescriptor(selectedPeerByMem.getAddress(), selectedPeerByMem.getAv())));
+                Collections.sort(tmanPartnersByCpus, new ComparatorByNumCpu(new PeerDescriptor(selectedPeerByCpu.getAddress(), selectedPeerByCpu.getAv())));
+                Collections.sort(tmanPartnersByMem, new ComparatorByNumMem(new PeerDescriptor(selectedPeerByMem.getAddress(), selectedPeerByMem.getAv())));
 
 //                System.out.println(self.getId() + " In TMan : tmanPartnersByRes after sort with selectedPeerByRes -> " + tmanPartnersByRes);
 
@@ -320,6 +320,12 @@ public final class TMan extends ComponentDefinition {
     	}
     	else if(view.size() == 1) {
     		return view.get(0);
+    	}
+    	else if(psi==0){
+    		return view.get(0);
+    	}
+    	else if(psi>view.size()){
+    		return view.get(r.nextInt(view.size()));
     	}
     	else {
     		return view.get(r.nextInt(psi));
