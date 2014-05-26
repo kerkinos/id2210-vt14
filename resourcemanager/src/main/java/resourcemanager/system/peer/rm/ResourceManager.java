@@ -65,10 +65,12 @@ public final class ResourceManager extends ComponentDefinition {
 	private RmConfiguration configuration;
 	private Random random;
 	private AvailableResources availableResources;
-	private static final int MAX_NUM_NODES = 8;
+	private static final int MAX_NUM_NODES = 4;
 	
 	private long startTime, endTime, averageTime;
-	boolean flag = false;
+	
+	//true = cyclon
+	boolean flag = true;
 
 	// queue where we put incoming requests for resources
 
@@ -126,7 +128,7 @@ public final class ResourceManager extends ComponentDefinition {
 			// You can change this policy if you want to.
 			// Maybe a gradient neighbour who is closer to the leader?
 			
-			System.out.println(averageTime);
+			//System.out.println(averageTime);
 
 			if (cyclonPartners.isEmpty()) {
 				return;
@@ -166,11 +168,13 @@ public final class ResourceManager extends ComponentDefinition {
 			//System.out.println("Got allocate event for requestId " + event.getReqid());
 			RequestResources rr = requestResourcesMap.get(event.getReqid());
 			Response best = rr.findBestResponse(event);
-			if (--rr.pendingResponses == 0) {
+			rr.pendingResponses --;
+			requestResourcesMap.put(event.getReqid(), rr);
+			if (rr.pendingResponses == 0) {
+				//System.out.println("HERE");
 				Allocate al = new Allocate(self, best.getSource(),rr.getNumCpus(), rr.getAmountMem(), rr.getTime(), event.getReqid());
 				trigger(al, networkPort);
 			}
-
 		}
 	};
 	
@@ -192,14 +196,22 @@ public final class ResourceManager extends ComponentDefinition {
 			
 			boolean success = availableResources.isAvailable(arg0.getNumCpus(),arg0.getAmountMem());
 			if (!success) {
-				queue.add(arg0);
+				if(!queue.contains(arg0)) {
+					queue.add(arg0);
+				}		
 			} 
 			else {
 				endTime = System.currentTimeMillis();
+				System.out.println("Allocate request with id " + arg0.getReqid() + " at time " + endTime);
 				timePerRequest.put(arg0.getReqid(), (endTime - startTime));
-				averageTime = getAverageTime();		
+				System.out.println("Diff" +  (endTime - startTime));
+				//averageTime = getAverageTime();		
 				
 				availableResources.allocate(arg0.getNumCpus(),arg0.getAmountMem());
+				if(!queue.isEmpty()) {
+					queue.remove();
+				}
+				
 				ScheduleTimeout st = new ScheduleTimeout(arg0.getTime());
 				st.setTimeoutEvent(new JobDone(st, arg0.getNumCpus(), arg0.getAmountMem()));
 				trigger(st, timerPort);
@@ -214,16 +226,10 @@ public final class ResourceManager extends ComponentDefinition {
 			
 			availableResources.release(arg0.getNumCpus(), arg0.getAmountMem());
 			if (!queue.isEmpty()) {
-				Allocate al = queue.poll();
-				boolean success = availableResources.isAvailable(al.getNumCpus(), al.getAmountMem());
-				if (success) {
-					availableResources.allocate(al.getNumCpus(),al.getAmountMem());
-					ScheduleTimeout st = new ScheduleTimeout(al.getTime());
-					st.setTimeoutEvent(new JobDone(st, al.getNumCpus(), al.getAmountMem()));
-					trigger(st, timerPort);
+				Allocate al = queue.peek();
+				trigger(al, networkPort);
 				}
 			}
-		}
 	};
 
 	Handler<CyclonSample> handleCyclonSample = new Handler<CyclonSample>() {
@@ -244,8 +250,8 @@ public final class ResourceManager extends ComponentDefinition {
 			// by sending a ResourceRequest
 			startTime = System.currentTimeMillis();
 
-			System.out.println(self.getId() + " Request resource id: "
-					+ event.getId());
+			System.out.println(self.getId() + "got request resource id: "
+					+ event.getId() + " at time " + startTime);
 			
 			requestedNumCpus = event.getNumCpus();
 			requestedNumMem = event.getMemoryInMbs();
