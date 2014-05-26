@@ -1,11 +1,18 @@
 package simulator.core;
 
-import common.simulation.SimulatorPort;
-
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
+
+import org.apache.commons.math.random.ValueServer;
+import org.apache.commons.math.stat.descriptive.rank.Percentile;
 
 import resourcemanager.system.peer.rm.ResourceManager;
+import se.sics.ipasdistances.AsIpGenerator;
 import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
@@ -17,14 +24,16 @@ import se.sics.kompics.address.Address;
 import se.sics.kompics.network.Message;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.p2p.bootstrap.BootstrapConfiguration;
+import se.sics.kompics.p2p.experiment.dsl.events.TerminateExperiment;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timer;
+import simulator.snapshot.Snapshot;
 import system.peer.Peer;
 import system.peer.PeerInit;
-import simulator.snapshot.Snapshot;
-import common.configuration.RmConfiguration;
+import system.peer.RmPort;
 import common.configuration.Configuration;
 import common.configuration.CyclonConfiguration;
+import common.configuration.RmConfiguration;
 import common.configuration.TManConfiguration;
 import common.peer.AvailableResources;
 import common.simulation.ConsistentHashtable;
@@ -33,14 +42,8 @@ import common.simulation.PeerFail;
 import common.simulation.PeerJoin;
 import common.simulation.RequestResource;
 import common.simulation.SimulatorInit;
-
-import java.net.InetAddress;
-import java.util.Random;
-
+import common.simulation.SimulatorPort;
 import cyclon.system.peer.cyclon.PeerDescriptor;
-import se.sics.ipasdistances.AsIpGenerator;
-import system.peer.RmPort;
-import se.sics.kompics.p2p.experiment.dsl.events.TerminateExperiment;
 
 public final class DataCenterSimulator extends ComponentDefinition {
 
@@ -112,9 +115,9 @@ public final class DataCenterSimulator extends ComponentDefinition {
         	Component peer = (Component) peerValues[generator.nextInt(peerValues.length)];
         	trigger( event, peer.getNegative(RmPort.class));
         	
-        	if (++counter == 50){
-        		System.out.println("Average = "  );	
-        	}     	
+//        	if (++counter == 50){
+//        		System.out.println("Average = "  );	
+//        	}     	
         }
     };
 	
@@ -134,13 +137,13 @@ public final class DataCenterSimulator extends ComponentDefinition {
             createAndStartNewPeer(id, event.getNumFreeCpus(), 
                     event.getFreeMemoryInMbs());
 
-            System.out.println("*******************************");
-            System.out.println("*******************************");
-            for(Long a : peersAddress.keySet()) {
-            	System.out.println("peer with id = " + a);
-            }
-            System.out.println("*******************************");
-            System.out.println("*******************************");
+//            System.out.println("*******************************");
+//            System.out.println("*******************************");
+//            for(Long a : peersAddress.keySet()) {
+//            	System.out.println("peer with id = " + a);
+//            }
+//            System.out.println("*******************************");
+//            System.out.println("*******************************");
 
             
             ringNodes.addNode(id);
@@ -165,9 +168,43 @@ public final class DataCenterSimulator extends ComponentDefinition {
     Handler<TerminateExperiment> handleTerminateExperiment = new Handler<TerminateExperiment>() {
         @Override
         public void handle(TerminateExperiment event) {
-            System.err.println("Finishing experiment - terminating....");
+            System.err.println("Finishing experiment - terminating....\n");
+            //TODO print results here
+            BufferedReader br;
+			try {
+				br = new BufferedReader(new FileReader("stats.txt"));
+				String line;
+				double[] values = new double[100000];
+				long sum = 0, average = 0; 
+				int total = 0;
+				double percentile = 0;
+	            while ((line = br.readLine()) != null) {
+	            	total++;
+	            	sum += Long.parseLong(line);
+	            	values[(int)total] = (Long.parseLong(line));
+	            }
+	            br.close();
+	            average = sum / total;
+	            percentile = getPercentile(values, total);
+	            String which;
+	            if (ResourceManager.flag) {
+	            	which = ", Simple Sparrow\n";
+	            }else {
+	            	which = ", Sparrow with gradient\n";
+	            }
+	            System.out.println("A total of "+total+" allocations of resources"+which+
+	            				   "Average time : "+average+" ms\n"+
+	            				   "99th Percentile : "+(int)percentile+ " ms");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
             System.exit(0);
         }
+
+		private double getPercentile(double [] values, int total) {
+			Percentile p = new Percentile();
+			return p.evaluate(values, 0, total, 99.0);
+		}
     };
     
     Handler<GenerateReport> handleGenerateReport = new Handler<GenerateReport>() {

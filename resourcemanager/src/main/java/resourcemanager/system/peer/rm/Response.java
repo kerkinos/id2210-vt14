@@ -11,12 +11,14 @@ public class Response extends Message{
 	private final boolean success;
     private final long reqid;
     private final int queueSize;
+    private final long startTime;
     
-    public Response(Address source, Address destination, boolean success, int queueSize, long reqid) {
+    public Response(Address source, Address destination, boolean success, int queueSize, long reqid, long startTime) {
         super(source, destination);
         this.success = success;
         this.reqid = reqid;
         this.queueSize = queueSize;
+        this.startTime = startTime;
     }
     
     public long getReqid() {
@@ -30,4 +32,9 @@ public class Response extends Message{
 	public boolean getSuccess() {
 		return success;
 	}
+	
+	public long getStartTime() {
+		return startTime;
+	}
+	
 }
