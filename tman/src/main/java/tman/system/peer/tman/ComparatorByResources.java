@@ -30,6 +30,12 @@ public class ComparatorByResources implements Comparator<PeerDescriptor> {
 		} else if (Math.abs(peer1Res - myRes) > Math.abs(peer2Res - myRes)) {
 			return 1;
 		}
+		
+//		if (peer1Res <  peer2Res ) {
+//			return 1;
+//		} else if (peer1Res >  peer2Res ) {
+//			return -1;
+//		}
 		return 0;
 	}
 

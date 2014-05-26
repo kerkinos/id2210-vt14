@@ -1,6 +1,6 @@
 package tman.simulator.snapshot;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.TreeMap;
 
 import cyclon.system.peer.cyclon.PeerDescriptor;
@@ -28,7 +28,7 @@ public class Snapshot {
 	}
 
 
-	public static void updateTManPartnersByRes(PeerDescriptor address, ArrayList<PeerDescriptor> partners) {
+	public static void updateTManPartnersByRes(PeerDescriptor address, LinkedList<PeerDescriptor> partners) {
 		PeerInfo peerInfo = peers.get(address);
 		
 		if (peerInfo == null)
@@ -37,7 +37,7 @@ public class Snapshot {
 		peerInfo.updateTManPartnersByRes(partners);
 	}
 	
-	public static void updateTManPartnersByCpu(PeerDescriptor address, ArrayList<PeerDescriptor> partners) {
+	public static void updateTManPartnersByCpu(PeerDescriptor address, LinkedList<PeerDescriptor> partners) {
 		PeerInfo peerInfo = peers.get(address);
 		
 		if (peerInfo == null)
@@ -46,7 +46,7 @@ public class Snapshot {
 		peerInfo.updateTManPartnersByCpu(partners);
 	}
 	
-	public static void updateTManPartnersByMem(PeerDescriptor address, ArrayList<PeerDescriptor> partners) {
+	public static void updateTManPartnersByMem(PeerDescriptor address, LinkedList<PeerDescriptor> partners) {
 		PeerInfo peerInfo = peers.get(address);
 		
 		if (peerInfo == null)
@@ -56,7 +56,7 @@ public class Snapshot {
 	}
 	
 
-	public static void updateCyclonPartners(Address address, ArrayList<Address> partners) {
+	public static void updateCyclonPartners(Address address, LinkedList<Address> partners) {
 		PeerInfo peerInfo = peers.get(address);
 		
 		if (peerInfo == null)

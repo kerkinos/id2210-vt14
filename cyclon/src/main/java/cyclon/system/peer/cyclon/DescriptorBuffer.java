@@ -2,18 +2,18 @@ package cyclon.system.peer.cyclon;
 
 
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import se.sics.kompics.address.Address;
 
 
 public class DescriptorBuffer implements Serializable {
 	private static final long serialVersionUID = -4414783055393007206L;
 	private final Address from;
-	private final ArrayList<PeerDescriptor> descriptors;
+	private final LinkedList<PeerDescriptor> descriptors;
 
 
 	public DescriptorBuffer(Address from,
-			ArrayList<PeerDescriptor> descriptors) {
+			LinkedList<PeerDescriptor> descriptors) {
 		super();
 		this.from = from;
 		this.descriptors = descriptors;
@@ -30,7 +30,7 @@ public class DescriptorBuffer implements Serializable {
 	}
 
 
-	public ArrayList<PeerDescriptor> getDescriptors() {
+	public LinkedList<PeerDescriptor> getDescriptors() {
 		return descriptors;
 	}
 }

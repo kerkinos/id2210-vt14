@@ -1,7 +1,7 @@
 package cyclon.system.peer.cyclon;
 
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -26,7 +26,7 @@ public class Cache {
 
 	private final int size;
 	private final Address self;
-	private ArrayList<ViewEntry> entries;
+	private LinkedList<ViewEntry> entries;
 	private HashMap<Address, ViewEntry> d2e;
 	private Random random = new Random(10);
 
@@ -35,7 +35,7 @@ public class Cache {
 		super();
 		this.self = self;
 		this.size = size;
-		this.entries = new ArrayList<ViewEntry>();
+		this.entries = new LinkedList<ViewEntry>();
 		this.d2e = new HashMap<Address, ViewEntry>();
 	}
 
@@ -57,10 +57,10 @@ public class Cache {
 	}
 
 
-	public ArrayList<PeerDescriptor> selectToSendAtActive(int count, Address destinationPeer) {
-		ArrayList<ViewEntry> randomEntries = generateRandomSample(count);
+	public LinkedList<PeerDescriptor> selectToSendAtActive(int count, Address destinationPeer) {
+		LinkedList<ViewEntry> randomEntries = generateRandomSample(count);
 
-		ArrayList<PeerDescriptor> descriptors = new ArrayList<PeerDescriptor>();
+		LinkedList<PeerDescriptor> descriptors = new LinkedList<PeerDescriptor>();
 		for (ViewEntry cacheEntry : randomEntries) {
 			cacheEntry.sentTo(destinationPeer);
 			descriptors.add(cacheEntry.getDescriptor());
@@ -70,9 +70,9 @@ public class Cache {
 	}
 
 
-	public ArrayList<PeerDescriptor> selectToSendAtPassive(int count, Address destinationPeer) {
-		ArrayList<ViewEntry> randomEntries = generateRandomSample(count);
-		ArrayList<PeerDescriptor> descriptors = new ArrayList<PeerDescriptor>();
+	public LinkedList<PeerDescriptor> selectToSendAtPassive(int count, Address destinationPeer) {
+		LinkedList<ViewEntry> randomEntries = generateRandomSample(count);
+		LinkedList<PeerDescriptor> descriptors = new LinkedList<PeerDescriptor>();
 		
 		for (ViewEntry cacheEntry : randomEntries) {
 			cacheEntry.sentTo(destinationPeer);
@@ -83,7 +83,7 @@ public class Cache {
 	}
 
 
-	public void selectToKeep(Address from, ArrayList<PeerDescriptor> descriptors) {
+	public void selectToKeep(Address from, LinkedList<PeerDescriptor> descriptors) {
 		LinkedList<ViewEntry> entriesSentToThisPeer = new LinkedList<ViewEntry>();
 		for (ViewEntry cacheEntry : entries) {
 			if (cacheEntry.wasSentTo(from)) {
@@ -126,8 +126,8 @@ public class Cache {
 	}
 
 
-	public final ArrayList<PeerDescriptor> getAll() {
-		ArrayList<PeerDescriptor> descriptors = new ArrayList<PeerDescriptor>();
+	public final LinkedList<PeerDescriptor> getAll() {
+		LinkedList<PeerDescriptor> descriptors = new LinkedList<PeerDescriptor>();
 
 		for (ViewEntry cacheEntry : entries)
 			descriptors.add(cacheEntry.getDescriptor());
@@ -137,7 +137,7 @@ public class Cache {
 
 
 	public final List<Address> getRandomPeers(int count) {
-		ArrayList<ViewEntry> randomEntries = generateRandomSample(count);
+		LinkedList<ViewEntry> randomEntries = generateRandomSample(count);
 		LinkedList<Address> randomPeers = new LinkedList<Address>();
 
 		for (ViewEntry cacheEntry : randomEntries) {
@@ -148,14 +148,14 @@ public class Cache {
 	}
 
 
-	private final ArrayList<ViewEntry> generateRandomSample(int n) {
-		ArrayList<ViewEntry> randomEntries;
+	private final LinkedList<ViewEntry> generateRandomSample(int n) {
+		LinkedList<ViewEntry> randomEntries;
 		if (n >= entries.size()) {
 			// return all entries
-			randomEntries = new ArrayList<ViewEntry>(entries);
+			randomEntries = new LinkedList<ViewEntry>(entries);
 		} else {
 			// return count random entries
-			randomEntries = new ArrayList<ViewEntry>();
+			randomEntries = new LinkedList<ViewEntry>();
 			// Don Knuth, The Art of Computer Programming, Algorithm S(3.4.2)
 			int t = 0, m = 0, N = entries.size();
 			while (m < n) {

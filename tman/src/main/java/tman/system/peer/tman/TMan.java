@@ -3,7 +3,7 @@ package tman.system.peer.tman;
 import common.configuration.TManConfiguration;
 import common.peer.AvailableResources;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 
 import cyclon.system.peer.cyclon.CyclonSample;
 import cyclon.system.peer.cyclon.CyclonSamplePort;
@@ -42,10 +42,10 @@ public final class TMan extends ComponentDefinition {
     private long period;
     private Address self;
     private PeerDescriptor selfDescriptor;
-    private ArrayList<PeerDescriptor> tmanPartnersByRes;
-    private ArrayList<PeerDescriptor> tmanPartnersByCpus;
-    private ArrayList<PeerDescriptor> tmanPartnersByMem;
-    private ArrayList<PeerDescriptor> cyclonPartners;
+    private LinkedList<PeerDescriptor> tmanPartnersByRes;
+    private LinkedList<PeerDescriptor> tmanPartnersByCpus;
+    private LinkedList<PeerDescriptor> tmanPartnersByMem;
+    private LinkedList<PeerDescriptor> cyclonPartners;
     
     private DescriptorBuffer myBufferRes;
     private DescriptorBuffer myBufferCpu;
@@ -69,10 +69,10 @@ public final class TMan extends ComponentDefinition {
     }
 
     public TMan() {
-    	cyclonPartners = new ArrayList<PeerDescriptor>();
-        tmanPartnersByRes = new ArrayList<PeerDescriptor>();
-        tmanPartnersByCpus = new ArrayList<PeerDescriptor>();
-        tmanPartnersByMem = new ArrayList<PeerDescriptor>();
+    	cyclonPartners = new LinkedList<PeerDescriptor>();
+        tmanPartnersByRes = new LinkedList<PeerDescriptor>();
+        tmanPartnersByCpus = new LinkedList<PeerDescriptor>();
+        tmanPartnersByMem = new LinkedList<PeerDescriptor>();
       
         subscribe(handleInit, control);
         subscribe(handleRound, timerPort);
@@ -112,6 +112,9 @@ public final class TMan extends ComponentDefinition {
             Snapshot.updateTManPartnersByMem(new PeerDescriptor(self,  availableResources), tmanPartnersByMem);
             
          // Publish sample to connected components
+//        	for(PeerDescriptor pd : tmanPartnersByRes) {
+//            	System.out.println( "from " + self.getId() + " " + pd.getAv().getNumFreeCpus() + " TMAN " + pd.getAv().getFreeMemInMbs());
+//            }
             trigger(new TManSample(tmanPartnersByRes, tmanPartnersByCpus, tmanPartnersByMem), tmanPort);
         }
     };
@@ -132,18 +135,18 @@ public final class TMan extends ComponentDefinition {
                 tmanPartnersByCpus.addAll(cyclonPartners);
                 tmanPartnersByMem.addAll(cyclonPartners);
                 
-                //System.out.println("In TMan : cyclonPartners -> " + cyclonPartners);
+                
 //                System.out.println(self.getId() + " In TMan : tmanPartnersByRes before -> " + tmanPartnersByRes);
 //                for(PeerDescriptor pd : tmanPartnersByRes) {
-//                	System.out.println(pd.getAv().getNumFreeCpus() + " " + pd.getAv().getFreeMemInMbs());
+//                	System.out.println(pd.getAddress().getId() + " " + pd.getAv().getNumFreeCpus() * pd.getAv().getFreeMemInMbs());
 //                }
                 Collections.sort(tmanPartnersByRes, new ComparatorByResources(new PeerDescriptor(self, availableResources)));
                 Collections.sort(tmanPartnersByCpus, new ComparatorByNumCpu(new PeerDescriptor(self, availableResources)));
                 Collections.sort(tmanPartnersByMem, new ComparatorByNumMem(new PeerDescriptor(self, availableResources)));
 
-//                System.out.println(self.getId() + " In TMan : tmanPartnersByRes after sort with myself -> " + tmanPartnersByRes);
+//                System.out.println(self.getId() + " In TMan : tmanPartnersByRes after sort -> " + tmanPartnersByRes);
 //                for(PeerDescriptor pd : tmanPartnersByRes) {
-//                	System.out.println(pd.getAv().getNumFreeCpus() + " " + pd.getAv().getFreeMemInMbs());
+//                	System.out.println(pd.getAddress().getId() + " " + pd.getAv().getNumFreeCpus() * pd.getAv().getFreeMemInMbs());
 //                }
                 
                 PeerDescriptor selectedPeerByRes, selectedPeerByCpu, selectedPeerByMem;
@@ -170,8 +173,11 @@ public final class TMan extends ComponentDefinition {
                 Collections.sort(tmanPartnersByCpus, new ComparatorByNumCpu(new PeerDescriptor(selectedPeerByCpu.getAddress(), selectedPeerByCpu.getAv())));
                 Collections.sort(tmanPartnersByMem, new ComparatorByNumMem(new PeerDescriptor(selectedPeerByMem.getAddress(), selectedPeerByMem.getAv())));
 
-//                System.out.println(self.getId() + " In TMan : tmanPartnersByRes after sort with selectedPeerByRes -> " + tmanPartnersByRes);
-
+//                System.out.println(self.getId() + " In TMan : tmanPartnersByRes after sort#2 -> " + tmanPartnersByRes);
+//                for(PeerDescriptor pd : tmanPartnersByRes) {
+//                	System.out.println(pd.getAddress().getId() + " " + pd.getAv().getNumFreeCpus() * pd.getAv().getFreeMemInMbs());
+//                }
+                
     	        myBufferRes = new DescriptorBuffer(self, tmanPartnersByRes);
     	        myBufferCpu = new DescriptorBuffer(self, tmanPartnersByCpus);
     	        myBufferMem = new DescriptorBuffer(self, tmanPartnersByMem);
@@ -193,7 +199,11 @@ public final class TMan extends ComponentDefinition {
     Handler<ExchangeMsg.RequestRes> handletmanPartnersRequestRes = new Handler<ExchangeMsg.RequestRes>() {
         @Override
         public void handle(ExchangeMsg.RequestRes event) {
-        	ArrayList<PeerDescriptor> receivedView = event.getRandomBuffer().getDescriptors();
+        	LinkedList<PeerDescriptor> receivedView = event.getRandomBuffer().getDescriptors();
+//        	System.out.println(self.getId() + " took from " + event.getSource().getId() + " In TMan : tmanPartnersByRes after receive buffer -> " + receivedView);
+//            for(PeerDescriptor pd : receivedView) {
+//            	System.out.println(pd.getAddress().getId() + " " + pd.getAv().getNumFreeCpus() * pd.getAv().getFreeMemInMbs());
+//            }
         	PeerDescriptor from = null;
         	for(PeerDescriptor pd : event.getRandomBuffer().getDescriptors()) {
         		if(pd.getAddress() == event.getSource()) {
@@ -207,6 +217,11 @@ public final class TMan extends ComponentDefinition {
 
             Collections.sort(tmanPartnersByRes, new ComparatorByResources(new PeerDescriptor(event.getSource(),
             						from.getAv())));
+            
+//            System.out.println(self.getId() + " In TMan : tmanPartnersByRes before send back -> " + tmanPartnersByRes);
+//            for(PeerDescriptor pd : tmanPartnersByRes) {
+//            	System.out.println(pd.getAddress().getId() + " " + pd.getAv().getNumFreeCpus() * pd.getAv().getFreeMemInMbs());
+//            }
 
             myBufferRes = new DescriptorBuffer(self, tmanPartnersByRes);
             trigger(new ExchangeMsg.ResponseRes(UUID.randomUUID(), myBufferRes, self, event.getSource()), networkPort);
@@ -221,7 +236,7 @@ public final class TMan extends ComponentDefinition {
     Handler<ExchangeMsg.RequestMem> handletmanPartnersRequestMem = new Handler<ExchangeMsg.RequestMem>() {
         @Override
         public void handle(ExchangeMsg.RequestMem event) {
-        	ArrayList<PeerDescriptor> receivedView = event.getRandomBuffer().getDescriptors();
+        	LinkedList<PeerDescriptor> receivedView = event.getRandomBuffer().getDescriptors();
         	PeerDescriptor from = null;
         	for(PeerDescriptor pd : event.getRandomBuffer().getDescriptors()) {
         		if(pd.getAddress() == event.getSource()) {
@@ -249,7 +264,7 @@ public final class TMan extends ComponentDefinition {
     Handler<ExchangeMsg.RequestCpu> handletmanPartnersRequestCpu = new Handler<ExchangeMsg.RequestCpu>() {
         @Override
         public void handle(ExchangeMsg.RequestCpu event) {
-        	ArrayList<PeerDescriptor> receivedView = event.getRandomBuffer().getDescriptors();
+        	LinkedList<PeerDescriptor> receivedView = event.getRandomBuffer().getDescriptors();
         	PeerDescriptor from = null;
         	for(PeerDescriptor pd : event.getRandomBuffer().getDescriptors()) {
         		if(pd.getAddress() == event.getSource()) {
@@ -277,7 +292,11 @@ public final class TMan extends ComponentDefinition {
     Handler<ExchangeMsg.ResponseRes> handletmanPartnersResponseRes = new Handler<ExchangeMsg.ResponseRes>() {
         @Override
         public void handle(ExchangeMsg.ResponseRes event) {
-        	ArrayList<PeerDescriptor> receivedView = event.getSelectedBuffer().getDescriptors();
+        	LinkedList<PeerDescriptor> receivedView = event.getSelectedBuffer().getDescriptors();
+//        	System.out.println(event.getSource().getId() + " In TMan : tmanPartnersByRes after receive response -> " + receivedView);
+//            for(PeerDescriptor pd : receivedView) {
+//            	System.out.println(pd.getAddress().getId() + " " + pd.getAv().getNumFreeCpus() * pd.getAv().getFreeMemInMbs());
+//            }
             tmanPartnersByRes.addAll(receivedView);
         	HashSet<PeerDescriptor> hs = new HashSet<PeerDescriptor>();
             hs.addAll(tmanPartnersByRes);
@@ -289,7 +308,7 @@ public final class TMan extends ComponentDefinition {
     Handler<ExchangeMsg.ResponseCpu> handletmanPartnersResponseCpu = new Handler<ExchangeMsg.ResponseCpu>() {
         @Override
         public void handle(ExchangeMsg.ResponseCpu event) {
-        	ArrayList<PeerDescriptor> receivedView = event.getSelectedBuffer().getDescriptors();
+        	LinkedList<PeerDescriptor> receivedView = event.getSelectedBuffer().getDescriptors();
             tmanPartnersByCpus.addAll(receivedView);
         	HashSet<PeerDescriptor> hs = new HashSet<PeerDescriptor>();
             hs.addAll(tmanPartnersByCpus);
@@ -301,7 +320,7 @@ public final class TMan extends ComponentDefinition {
     Handler<ExchangeMsg.ResponseMem> handletmanPartnersResponseMem = new Handler<ExchangeMsg.ResponseMem>() {
         @Override
         public void handle(ExchangeMsg.ResponseMem event) {
-        	ArrayList<PeerDescriptor> receivedView = event.getSelectedBuffer().getDescriptors();
+        	LinkedList<PeerDescriptor> receivedView = event.getSelectedBuffer().getDescriptors();
             tmanPartnersByMem.addAll(receivedView);
         	HashSet<PeerDescriptor> hs = new HashSet<PeerDescriptor>();
             hs.addAll(tmanPartnersByMem);
@@ -314,7 +333,7 @@ public final class TMan extends ComponentDefinition {
     	logger.info("Peer " + self.getId() + " :" + msg);
     }
     
-    public PeerDescriptor selectPeer(int psi, ArrayList<PeerDescriptor> view) {
+    public PeerDescriptor selectPeer(int psi, LinkedList<PeerDescriptor> view) {
     	if(view.size() == 0) {
     		return null;
     	}

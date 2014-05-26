@@ -2,7 +2,7 @@ package cyclon.system.peer.cyclon;
 
 import common.configuration.CyclonConfiguration;
 import common.peer.AvailableResources;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.UUID;
@@ -101,7 +101,7 @@ public final class Cyclon extends ComponentDefinition {
 	 */
 	private void initiateShuffle(int shuffleSize, Address randomPeer) {
 		// send the random view to a random peer
-		ArrayList<PeerDescriptor> randomDescriptors = cache.selectToSendAtActive(shuffleSize - 1, randomPeer);
+		LinkedList<PeerDescriptor> randomDescriptors = cache.selectToSendAtActive(shuffleSize - 1, randomPeer);
 		randomDescriptors.add(new PeerDescriptor(self, availableResources));
 		DescriptorBuffer randomBuffer = new DescriptorBuffer(self, randomDescriptors);
 		
@@ -191,9 +191,9 @@ public final class Cyclon extends ComponentDefinition {
 	};
 	
 
-	private ArrayList<PeerDescriptor> getPartners() {
-		ArrayList<PeerDescriptor> partnersDescriptors = cache.getAll();
-		//ArrayList<Address> partners = new ArrayList<Address>();
+	private LinkedList<PeerDescriptor> getPartners() {
+		LinkedList<PeerDescriptor> partnersDescriptors = cache.getAll();
+		//LinkedList<Address> partners = new LinkedList<Address>();
 //		for (PeerDescriptor desc : partnersDescriptors) {
 //			if(desc.getAddress() == self) {
 //				System.out.println("IN HEREEEEEEEEEEEEEEE");

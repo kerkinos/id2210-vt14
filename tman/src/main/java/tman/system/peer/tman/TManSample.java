@@ -1,6 +1,6 @@
 package tman.system.peer.tman;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 
 
 
@@ -10,26 +10,26 @@ import se.sics.kompics.address.Address;
 
 
 public class TManSample extends Event {
-	ArrayList<PeerDescriptor> partnersByRes = new ArrayList<PeerDescriptor>();
-	ArrayList<PeerDescriptor> partnersByCpu = new ArrayList<PeerDescriptor>();
-	ArrayList<PeerDescriptor> partnersByMem = new ArrayList<PeerDescriptor>();
+	LinkedList<PeerDescriptor> partnersByRes = new LinkedList<PeerDescriptor>();
+	LinkedList<PeerDescriptor> partnersByCpu = new LinkedList<PeerDescriptor>();
+	LinkedList<PeerDescriptor> partnersByMem = new LinkedList<PeerDescriptor>();
 
-	public TManSample(ArrayList<PeerDescriptor> partnersByRes, ArrayList<PeerDescriptor> partnersByCpu,
-			ArrayList<PeerDescriptor> partnersByMem) {
+	public TManSample(LinkedList<PeerDescriptor> partnersByRes, LinkedList<PeerDescriptor> partnersByCpu,
+			LinkedList<PeerDescriptor> partnersByMem) {
 		this.partnersByRes= partnersByRes;
 		this.partnersByCpu = partnersByCpu;
 		this.partnersByMem = partnersByMem;
 	}
         
-	public ArrayList<PeerDescriptor> getPartnersByRes() {
+	public LinkedList<PeerDescriptor> getPartnersByRes() {
 		return partnersByRes;
 	}
 
-	public ArrayList<PeerDescriptor> getPartnersByCpu() {
+	public LinkedList<PeerDescriptor> getPartnersByCpu() {
 		return partnersByCpu;
 	}
 
-	public ArrayList<PeerDescriptor> getPartnersByMem() {
+	public LinkedList<PeerDescriptor> getPartnersByMem() {
 		return partnersByMem;
 	}
 

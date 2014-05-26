@@ -1,6 +1,6 @@
 package cyclon.system.peer.cyclon;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 
 
 import se.sics.kompics.Event;
@@ -8,10 +8,10 @@ import se.sics.kompics.address.Address;
 
 
 public class CyclonSample extends Event {
-	ArrayList<PeerDescriptor> nodes = new ArrayList<PeerDescriptor>();
+	LinkedList<PeerDescriptor> nodes = new LinkedList<PeerDescriptor>();
 
 
-	public CyclonSample(ArrayList<PeerDescriptor> nodes) {
+	public CyclonSample(LinkedList<PeerDescriptor> nodes) {
 		this.nodes = nodes;
 	}
         
@@ -19,7 +19,7 @@ public class CyclonSample extends Event {
 	}
 
 
-	public ArrayList<PeerDescriptor> getSample() {
+	public LinkedList<PeerDescriptor> getSample() {
 		return this.nodes;
 	}
 }

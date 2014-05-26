@@ -38,9 +38,9 @@ public class AvailableResources {
     }
 
     public synchronized void release(int numCpus, int memInMbs) {
-        if (numCpus <= 0 || memInMbs <= 0) {
-            throw new IllegalArgumentException("Invalid numbCpus or mem");
-        }
+//        if (numCpus <= 0 || memInMbs <= 0) {
+//            throw new IllegalArgumentException("Invalid numbCpus or mem");
+//        }
         numFreeCpus += numCpus;
         freeMemInMbs += memInMbs;
     }

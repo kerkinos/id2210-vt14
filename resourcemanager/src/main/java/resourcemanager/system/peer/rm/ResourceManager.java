@@ -7,7 +7,7 @@ import cyclon.system.peer.cyclon.CyclonSample;
 import cyclon.system.peer.cyclon.CyclonSamplePort;
 import cyclon.system.peer.cyclon.PeerDescriptor;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -32,6 +32,9 @@ import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.kompics.web.Web;
 import system.peer.RmPort;
+import tman.system.peer.tman.ComparatorByNumCpu;
+import tman.system.peer.tman.ComparatorByNumMem;
+import tman.system.peer.tman.ComparatorByResources;
 import tman.system.peer.tman.TManSample;
 import tman.system.peer.tman.TManSamplePort;
 
@@ -49,11 +52,14 @@ public final class ResourceManager extends ComponentDefinition {
 	Negative<Web> webPort = provides(Web.class);
 	Positive<CyclonSamplePort> cyclonSamplePort = requires(CyclonSamplePort.class);
 	Positive<TManSamplePort> tmanPort = requires(TManSamplePort.class);
-	ArrayList<PeerDescriptor> cyclonPartners = new ArrayList<PeerDescriptor>();
-	ArrayList<PeerDescriptor> tmanPartners = new ArrayList<PeerDescriptor>();
-	ArrayList<PeerDescriptor> tmanPartnersByRes = new ArrayList<PeerDescriptor>();
-	ArrayList<PeerDescriptor> tmanPartnersByCpu = new ArrayList<PeerDescriptor>();
-	ArrayList<PeerDescriptor> tmanPartnersByMem = new ArrayList<PeerDescriptor>();
+	LinkedList<PeerDescriptor> cyclonPartners = new LinkedList<PeerDescriptor>();
+	LinkedList<PeerDescriptor> tmanPartners = new LinkedList<PeerDescriptor>();
+	LinkedList<PeerDescriptor> tmanPartnersByRes = new LinkedList<PeerDescriptor>();
+	LinkedList<PeerDescriptor> tmanPartnersByCpu = new LinkedList<PeerDescriptor>();
+	LinkedList<PeerDescriptor> tmanPartnersByMem = new LinkedList<PeerDescriptor>();
+	
+	int requestedNumCpus;
+	int requestedNumMem;
 	
 	private Address self;
 	private RmConfiguration configuration;
@@ -62,6 +68,7 @@ public final class ResourceManager extends ComponentDefinition {
 	private static final int MAX_NUM_NODES = 8;
 	
 	private long startTime, endTime, averageTime;
+	boolean flag = false;
 
 	// queue where we put incoming requests for resources
 
@@ -74,7 +81,8 @@ public final class ResourceManager extends ComponentDefinition {
 		public int compare(PeerDescriptor t, PeerDescriptor t1) {
 			if (t.getAge() > t1.getAge()) {
 				return 1;
-			} else {
+			} 
+			else {
 				return -1;
 			}
 		}
@@ -90,7 +98,7 @@ public final class ResourceManager extends ComponentDefinition {
 		subscribe(handleResourceAllocationRequest, networkPort);
 		subscribe(handleResourceAllocationResponse, networkPort);
 		subscribe(handleAllocateResources, networkPort);
-//		subscribe(handleTManSample, tmanPort);
+		subscribe(handleTManSample, tmanPort);
 	}
 
 	Handler<RmInit> handleInit = new Handler<RmInit>() {
@@ -155,15 +163,11 @@ public final class ResourceManager extends ComponentDefinition {
 		public void handle(Response event) {
 			// System.out.println(self + " Got response from " +
 			// event.getSource().getId());
-			System.out.println("Got allocate event for requestId " + event.getReqid());
+			//System.out.println("Got allocate event for requestId " + event.getReqid());
 			RequestResources rr = requestResourcesMap.get(event.getReqid());
 			Response best = rr.findBestResponse(event);
 			if (--rr.pendingResponses == 0) {
-				endTime = System.currentTimeMillis();
-				timePerRequest.put(event.getReqid(), (endTime - startTime));
-				averageTime = getAverageTime();					
-				Allocate al = new Allocate(self, best.getSource(),
-						rr.getNumCpus(), rr.getAmountMem(), rr.getTime());
+				Allocate al = new Allocate(self, best.getSource(),rr.getNumCpus(), rr.getAmountMem(), rr.getTime(), event.getReqid());
 				trigger(al, networkPort);
 			}
 
@@ -177,27 +181,29 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 		if(timePerRequest.size()==0){
 			return 0;
-		}else
-		return sum / timePerRequest.size();
+		}
+		else return sum / timePerRequest.size();
 	}
 
 	Handler<Allocate> handleAllocateResources = new Handler<Allocate>() {
 
 		@Override
 		public void handle(Allocate arg0) {
-			boolean success = availableResources.isAvailable(arg0.getNumCpus(),
-					arg0.getAmountMem());
+			
+			boolean success = availableResources.isAvailable(arg0.getNumCpus(),arg0.getAmountMem());
 			if (!success) {
 				queue.add(arg0);
-			} else {
-				availableResources.allocate(arg0.getNumCpus(),
-						arg0.getAmountMem());
+			} 
+			else {
+				endTime = System.currentTimeMillis();
+				timePerRequest.put(arg0.getReqid(), (endTime - startTime));
+				averageTime = getAverageTime();		
+				
+				availableResources.allocate(arg0.getNumCpus(),arg0.getAmountMem());
 				ScheduleTimeout st = new ScheduleTimeout(arg0.getTime());
-				st.setTimeoutEvent(new JobDone(st, arg0.getNumCpus(), arg0
-						.getAmountMem()));
+				st.setTimeoutEvent(new JobDone(st, arg0.getNumCpus(), arg0.getAmountMem()));
 				trigger(st, timerPort);
 			}
-
 		}
 	};
 
@@ -205,20 +211,15 @@ public final class ResourceManager extends ComponentDefinition {
 
 		@Override
 		public void handle(JobDone arg0) {
+			
 			availableResources.release(arg0.getNumCpus(), arg0.getAmountMem());
-
 			if (!queue.isEmpty()) {
-
 				Allocate al = queue.poll();
-
-				boolean success = availableResources.isAvailable(
-						al.getNumCpus(), al.getAmountMem());
+				boolean success = availableResources.isAvailable(al.getNumCpus(), al.getAmountMem());
 				if (success) {
-					availableResources.allocate(al.getNumCpus(),
-							al.getAmountMem());
+					availableResources.allocate(al.getNumCpus(),al.getAmountMem());
 					ScheduleTimeout st = new ScheduleTimeout(al.getTime());
-					st.setTimeoutEvent(new JobDone(st, al.getNumCpus(), al
-							.getAmountMem()));
+					st.setTimeoutEvent(new JobDone(st, al.getNumCpus(), al.getAmountMem()));
 					trigger(st, timerPort);
 				}
 			}
@@ -228,22 +229,10 @@ public final class ResourceManager extends ComponentDefinition {
 	Handler<CyclonSample> handleCyclonSample = new Handler<CyclonSample>() {
 		@Override
 		public void handle(CyclonSample event) {
-			// System.out.println("id " + self.getId() + " received samples: " +
-			// event.getSample().size());
 
 			// receive a new list of cyclonPartners
 			cyclonPartners.clear();
 			cyclonPartners.addAll(event.getSample());
-
-//			if (event.getSample().size() > 0) {
-//				System.out.print("My neigbours are [ ");
-//				for (PeerDescriptor peer : cyclonPartners) {
-//					System.out.print(peer.getAddress().getId() + " ");
-//					System.out.print("In ResourceManager " + peer.getAv().getNumFreeCpus() + " ");
-//
-//				}
-//				System.out.print("]\n\n");
-//			}
 
 		}
 	};
@@ -251,15 +240,15 @@ public final class ResourceManager extends ComponentDefinition {
 	Handler<RequestResource> handleRequestResource = new Handler<RequestResource>() {
 		@Override
 		public void handle(RequestResource event) {
-
-			// System.out.println("Allocate resources: " + event.getId() + " " +
-			// event.getNumCpus() + " + " + event.getMemoryInMbs());
 			// TODO: Ask for resources from cyclonPartners
 			// by sending a ResourceRequest
 			startTime = System.currentTimeMillis();
 
 			System.out.println(self.getId() + " Request resource id: "
 					+ event.getId());
+			
+			requestedNumCpus = event.getNumCpus();
+			requestedNumMem = event.getMemoryInMbs();
 			
 			if( (event.getMemoryInMbs() * event.getNumCpus()) != 0 ) {
 				tmanPartners = tmanPartnersByRes;
@@ -271,77 +260,92 @@ public final class ResourceManager extends ComponentDefinition {
 				tmanPartners = tmanPartnersByMem;
 			}
 
-//			if (tmanPartnersByRes.size() <= MAX_NUM_NODES) {
-//				requestResourcesMap
-//						.put(event.getId(),
-//								new RequestResources(event.getNumCpus(), event
-//										.getMemoryInMbs(), event
-//										.getTimeToHoldResource(),
-//										tmanPartnersByRes.size()));
-//				for (PeerDescriptor dest : tmanPartnersByRes) {
-//					Request req = new Request(self, dest.getAddress(),
-//							event.getNumCpus(), event.getMemoryInMbs(),
-//							event.getId());
-//					trigger(req, networkPort);
-//				}
-//			} else {
-//				requestResourcesMap.put(
-//						event.getId(),
-//						new RequestResources(event.getNumCpus(), event
-//								.getMemoryInMbs(), event
-//								.getTimeToHoldResource(), MAX_NUM_NODES));
-//				for (int i = 0; i < MAX_NUM_NODES; i++) {
-//					int index = random.nextInt(tmanPartnersByRes.size());
-//					PeerDescriptor dest = tmanPartnersByRes.get(index);
-//					tmanPartnersByRes.remove(index);
-//					Request req = new Request(self, dest.getAddress(),
-//							event.getNumCpus(), event.getMemoryInMbs(),
-//							event.getId());
-//					trigger(req, networkPort);
-//				}
-			if (cyclonPartners.size() <= MAX_NUM_NODES) {
-				requestResourcesMap
-						.put(event.getId(),
-								new RequestResources(event.getNumCpus(), event
-										.getMemoryInMbs(), event
-										.getTimeToHoldResource(),
-										cyclonPartners.size()));
-				for (PeerDescriptor dest : cyclonPartners) {
-					Request req = new Request(self, dest.getAddress(),
-							event.getNumCpus(), event.getMemoryInMbs(),
-							event.getId());
-					trigger(req, networkPort);
-				}
-			} else {
-				requestResourcesMap.put(
-						event.getId(),
-						new RequestResources(event.getNumCpus(), event
-								.getMemoryInMbs(), event
-								.getTimeToHoldResource(), MAX_NUM_NODES));
-				for (int i = 0; i < MAX_NUM_NODES; i++) {
-					int index = random.nextInt(cyclonPartners.size());
-					PeerDescriptor dest = cyclonPartners.get(index);
-					cyclonPartners.remove(index);
-					Request req = new Request(self, dest.getAddress(),
-							event.getNumCpus(), event.getMemoryInMbs(),
-							event.getId());
-					trigger(req, networkPort);
-				}
-
+			if (flag) {
+				takeCyclonSample(event);
 			}
+			else {
+				takeTmanSample(event);
+			}
+			
 		}
 	};
+	
+	void takeCyclonSample(RequestResource event) {
+		if (cyclonPartners.size() <= MAX_NUM_NODES) {
+			requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
+													.getMemoryInMbs(), event
+													.getTimeToHoldResource(),
+													cyclonPartners.size()));
+			for (PeerDescriptor dest : cyclonPartners) {
+				Request req = new Request(self, dest.getAddress(),
+						event.getNumCpus(), event.getMemoryInMbs(),
+						event.getId());
+				trigger(req, networkPort);
+			}
+		} 
+		else {
+			requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
+													.getMemoryInMbs(), event
+													.getTimeToHoldResource(), MAX_NUM_NODES));
+			for (int i = 0; i < MAX_NUM_NODES; i++) {
+				int index = random.nextInt(cyclonPartners.size());
+				PeerDescriptor dest = cyclonPartners.get(index);
+				cyclonPartners.remove(index);
+				Request req = new Request(self, dest.getAddress(),
+						event.getNumCpus(), event.getMemoryInMbs(),
+						event.getId());
+				trigger(req, networkPort);
+			}
+
+		}
+	}
+	
+	void takeTmanSample(RequestResource event){
+		if (tmanPartners.size() <= MAX_NUM_NODES) {
+			requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
+													.getMemoryInMbs(), event
+													.getTimeToHoldResource(),
+													tmanPartners.size()));
+			for (PeerDescriptor dest : tmanPartners) {
+				Request req = new Request(self, dest.getAddress(),
+						event.getNumCpus(), event.getMemoryInMbs(),
+						event.getId());
+				trigger(req, networkPort);
+			}
+		} 
+		else {
+			requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
+													.getMemoryInMbs(), event
+													.getTimeToHoldResource(), MAX_NUM_NODES));
+			for (int i = 0; i < MAX_NUM_NODES; i++) {
+//				int index = random.nextInt(tmanPartners.size());
+				int index = 0;
+				PeerDescriptor dest = tmanPartners.get(index);
+				tmanPartners.remove(index);
+				Request req = new Request(self, dest.getAddress(),
+						event.getNumCpus(), event.getMemoryInMbs(),
+						event.getId());
+				trigger(req, networkPort);
+			}
+		}
+	}
 	
 	Handler<TManSample> handleTManSample = new Handler<TManSample>() {
 		@Override
 		public void handle(TManSample event) {
-			// TODO:
+			
 			tmanPartnersByRes.clear();
 			tmanPartnersByCpu.clear();
 			tmanPartnersByMem.clear();
 			tmanPartnersByRes.addAll(event.getPartnersByRes());
 			tmanPartnersByCpu.addAll(event.getPartnersByCpu());
 			tmanPartnersByMem.addAll(event.getPartnersByMem());
+            Collections.sort(tmanPartnersByRes, new ComparatorByResources(new PeerDescriptor(self, availableResources)));
+            Collections.sort(tmanPartnersByCpu, new ComparatorByNumCpu(new PeerDescriptor(self, availableResources)));
+            Collections.sort(tmanPartnersByMem, new ComparatorByNumMem(new PeerDescriptor(self, availableResources)));
+//        	for(PeerDescriptor pd : tmanPartnersByRes) {
+//            	System.out.println( "from " + self.getId() + " " + pd.getAv().getNumFreeCpus() + " RESM " + pd.getAv().getFreeMemInMbs());
+//            }
 		}
 	};
 
