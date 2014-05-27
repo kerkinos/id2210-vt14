@@ -89,7 +89,7 @@ public final class TMan extends ComponentDefinition {
         @Override
         public void handle(TManInit init) {
         	
-        	System.out.println("TMan is initialized!!");
+//        	System.out.println("TMan is initialized!!");
             self = init.getSelf();
             tmanConfiguration = init.getConfiguration();
             period = tmanConfiguration.getPeriod();
@@ -188,7 +188,7 @@ public final class TMan extends ComponentDefinition {
     	        trigger(new ExchangeMsg.RequestMem(UUID.randomUUID(), myBufferMem, self, selectedPeerByMem.getAddress()), networkPort);
             }
             else {
-            	System.out.println("empty sample");
+//            	System.out.println("empty sample");
             	return;
             }
             
