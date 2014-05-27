@@ -17,8 +17,7 @@ public class RequestResources {
 	int pendingResponses;
 	Response bestResponse = null;
 
-	public RequestResources(int numCpus, int amountMem, int time,
-			int pendingResponses) {
+	public RequestResources(int numCpus, int amountMem, int time, int pendingResponses) {
 		this.numCpus = numCpus;
 		this.amountMem = amountMem;
 		this.time = time;

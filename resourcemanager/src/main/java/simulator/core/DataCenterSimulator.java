@@ -27,6 +27,7 @@ import common.configuration.Configuration;
 import common.configuration.CyclonConfiguration;
 import common.configuration.TManConfiguration;
 import common.peer.AvailableResources;
+import common.simulation.AllocateResourcesManyMachines;
 import common.simulation.ConsistentHashtable;
 import common.simulation.GenerateReport;
 import common.simulation.PeerFail;
@@ -56,9 +57,7 @@ public final class DataCenterSimulator extends ComponentDefinition {
     private Long identifierSpaceSize;
     private ConsistentHashtable<Long> ringNodes;
     private AsIpGenerator ipGenerator = AsIpGenerator.getInstance(125);
-    
-    private int counter = 0;
-    
+        
     Random r = new Random(System.currentTimeMillis());
 	
     public DataCenterSimulator() {
@@ -72,6 +71,7 @@ public final class DataCenterSimulator extends ComponentDefinition {
         subscribe(handlePeerFail, simulator);
         subscribe(handleTerminateExperiment, simulator);
         subscribe(handleRequestResource, simulator);
+        subscribe(handleBatchRequest, simulator);
     }
 	
     Handler<SimulatorInit> handleInit = new Handler<SimulatorInit>() {
@@ -98,25 +98,28 @@ public final class DataCenterSimulator extends ComponentDefinition {
     Handler<RequestResource> handleRequestResource = new Handler<RequestResource>() {
         @Override
         public void handle(RequestResource event) {
-//            System.out.println("------------------" + event.getId());
-//            Long successor = ringNodes.getNode(event.getId());
-//            Long successortest = ringNodes.getNode(Long.parseLong("4"));
-//            System.out.println("------------------" + successortest);
-//            System.out.println("------------------" + successor);
-//            Component peer = peers.get(successor);
-//            System.out.println("------------------" + peer.toString());
-//            trigger( event, peer.getNegative(RmPort.class));       
-//            
-        	Random generator = new Random();
-        	Object[] peerValues =  peers.values().toArray();
-        	Component peer = (Component) peerValues[generator.nextInt(peerValues.length)];
-        	trigger( event, peer.getNegative(RmPort.class));
         	
-        	if (++counter == 50){
-        		System.out.println("Average = "  );	
-        	}     	
+            Long successor = ringNodes.getNode(event.getId());
+            Component peer = peers.get(successor);
+            trigger( event, peer.getNegative(RmPort.class));       
+//            
+//        	Random generator = new Random();
+//        	Object[] peerValues =  peers.values().toArray();
+//        	Component peer = (Component) peerValues[generator.nextInt(peerValues.length)];
+//        	trigger( event, peer.getNegative(RmPort.class));
+        		
         }
     };
+    
+    Handler<AllocateResourcesManyMachines> handleBatchRequest = new Handler<AllocateResourcesManyMachines>() {
+		
+		@Override
+		public void handle(AllocateResourcesManyMachines event) {
+			Long successor = ringNodes.getNode(event.getId());
+            Component peer = peers.get(successor);
+            trigger( event, peer.getNegative(RmPort.class)); 
+		}
+	};
 	
     Handler<PeerJoin> handlePeerJoin = new Handler<PeerJoin>() {
         @Override

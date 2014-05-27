@@ -2,11 +2,13 @@ package resourcemanager.system.peer.rm;
 
 import common.configuration.RmConfiguration;
 import common.peer.AvailableResources;
+import common.simulation.AllocateResourcesManyMachines;
 import common.simulation.RequestResource;
 import cyclon.system.peer.cyclon.CyclonSample;
 import cyclon.system.peer.cyclon.CyclonSamplePort;
 import cyclon.system.peer.cyclon.PeerDescriptor;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -94,6 +96,7 @@ public final class ResourceManager extends ComponentDefinition {
 
 		subscribe(handleInit, control);
 		subscribe(handleCyclonSample, cyclonSamplePort);
+		subscribe(handleBatchRequest, indexPort);
 		subscribe(handleRequestResource, indexPort);
 		subscribe(handleUpdateTimeout, timerPort);
 		subscribe(handleJobDone, timerPort);
@@ -242,6 +245,50 @@ public final class ResourceManager extends ComponentDefinition {
 
 		}
 	};
+	
+	Handler<AllocateResourcesManyMachines> handleBatchRequest = new Handler<AllocateResourcesManyMachines>() {
+		
+		@Override
+		public void handle(AllocateResourcesManyMachines event) {
+			startTime = System.currentTimeMillis();
+
+			System.out.println(self.getId() + "got request resource id: "
+					+ event.getId() + " at time " + startTime);
+			
+//			requestedNumCpus = event.getNumCpus();
+//			requestedNumMem = event.getMemoryInMbs();
+//			ArrayList<PeerDescriptor> batchReqPeers = new ArrayList<PeerDescriptor>();
+//			
+//			int sumCpus = 0;
+//			int sumMem = 0;
+//			
+//			for(PeerDescriptor p : cyclonPartners) {
+//				int pNumCpus = p.getAv().getNumFreeCpus();
+//				int pNumMem = p.getAv().getFreeMemInMbs();
+//				batchReqPeers.add(p);
+//				
+//				sumCpus += pNumCpus;
+//				sumMem += pNumMem;
+//				if(sumCpus >= requestedNumCpus && sumMem >= requestedNumMem) {
+//					break;
+//				}
+//			}
+			
+			if(cyclonPartners.size() >= event.getNumMachines()) {
+				for(int i=0; i<event.getNumMachines(); i++) {
+					int index = random.nextInt(cyclonPartners.size());
+					PeerDescriptor dest = cyclonPartners.get(index);
+					cyclonPartners.remove(index);
+					Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
+									event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId());
+				}
+			}
+			else {
+				return;
+			}
+		
+		}
+	};
 
 	Handler<RequestResource> handleRequestResource = new Handler<RequestResource>() {
 		@Override
@@ -253,8 +300,6 @@ public final class ResourceManager extends ComponentDefinition {
 			System.out.println(self.getId() + "got request resource id: "
 					+ event.getId() + " at time " + startTime);
 			
-			requestedNumCpus = event.getNumCpus();
-			requestedNumMem = event.getMemoryInMbs();
 			
 			if( (event.getMemoryInMbs() * event.getNumCpus()) != 0 ) {
 				tmanPartners = tmanPartnersByRes;
