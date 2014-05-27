@@ -83,7 +83,7 @@ public final class ResourceManager extends ComponentDefinition {
 	private static final int MAX_NUM_NODES = 4;
 	
 	//true = cyclon
-	public static boolean flag = false;
+	public static boolean flag = true;
 
 	// queue where we put incoming requests for resources
 
@@ -294,6 +294,7 @@ public final class ResourceManager extends ComponentDefinition {
 					cyclonPartners.remove(index);
 					Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
 									event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), startTime);
+					trigger(al, networkPort);
 				}
 			}
 			else {
@@ -363,32 +364,15 @@ public final class ResourceManager extends ComponentDefinition {
 	}
 	
 	void takeTmanSample(RequestResource event){
-		if (tmanPartners.size() <= MAX_NUM_NODES) {
-			requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
-													.getMemoryInMbs(), event
-													.getTimeToHoldResource(),
-													tmanPartners.size()));
-			for (PeerDescriptor dest : tmanPartners) {
-				Request req = new Request(self, dest.getAddress(),
-						event.getNumCpus(), event.getMemoryInMbs(),
-						event.getId(), event.getStartTime());
-				trigger(req, networkPort);
-			}
-		} 
-		else {
-			requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
-													.getMemoryInMbs(), event
-													.getTimeToHoldResource(), MAX_NUM_NODES));
-			for (int i = 0; i < MAX_NUM_NODES; i++) {
-//				int index = random.nextInt(tmanPartners.size());
-				int index = 0;
-				PeerDescriptor dest = tmanPartners.get(index);
-				tmanPartners.remove(index);
-				Request req = new Request(self, dest.getAddress(),
-						event.getNumCpus(), event.getMemoryInMbs(),
-						event.getId(), event.getStartTime());
-				trigger(req, networkPort);
-			}
+		if (tmanPartners.size() != 0) {
+
+//			int index = random.nextInt(tmanPartners.size());
+			int index = 0;
+			PeerDescriptor dest = tmanPartners.get(index);
+			Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
+					event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), event.getStartTime());
+			trigger(al, networkPort);
+			
 		}
 	}
 	
