@@ -187,11 +187,11 @@ public final class ResourceManager extends ComponentDefinition {
 			rr.pendingResponses --;
 			requestResourcesMap.put(event.getReqid(), rr);
 			if (rr.pendingResponses == 0) {
-				//System.out.println("HERE");
-				//TODO sort the responses list here
-				//TODO implement with for here
-				//Allocate al = new Allocate(self, best.getSource(),rr.getNumCpus(), rr.getAmountMem(), rr.getTime(), event.getReqid(),event.getStartTime());
-				//trigger(al, networkPort);
+				rr.sortResponses();
+				for (int i = 0 ; i < requestedNumMachines; i++) {
+				Allocate al = new Allocate(self, rr.getResponses().get(i).getSource(),rr.getNumCpus(), rr.getAmountMem(), rr.getTime(), event.getReqid(),event.getStartTime());
+				trigger(al, networkPort);
+				}
 			}
 		}
 	};
@@ -356,7 +356,7 @@ public final class ResourceManager extends ComponentDefinition {
 	};
 	
 	void takeCyclonSample(RequestResource event) {
-		if (cyclonPartners.size() <= MAX_NUM_NODES && !cyclonPartners.isEmpty()) {
+		if (cyclonPartners.size() <= MAX_NUM_NODES && cyclonPartners.size()>0) {
 			requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
 													.getMemoryInMbs(), event
 													.getTimeToHoldResource(),
@@ -368,7 +368,7 @@ public final class ResourceManager extends ComponentDefinition {
 				trigger(req, networkPort);
 			}
 		} 
-		else {
+		else if (cyclonPartners.size() > MAX_NUM_NODES && cyclonPartners.size()>0) {
 			requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
 													.getMemoryInMbs(), event
 													.getTimeToHoldResource(), MAX_NUM_NODES));

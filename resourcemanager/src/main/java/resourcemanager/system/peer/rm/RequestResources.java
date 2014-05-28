@@ -1,12 +1,15 @@
 package resourcemanager.system.peer.rm;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import se.sics.kompics.address.Address;
 import se.sics.kompics.network.Message;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
+import tman.system.peer.tman.ComparatorByResources;
 
 /**
  * User: jdowling
@@ -18,7 +21,7 @@ public class RequestResources {
 	private int time;
 	int pendingResponses;
 	Response bestResponse = null;
-	ArrayList<Response> responses = null;
+	ArrayList<Response> responses = new ArrayList<Response>();
 
 	public RequestResources(int numCpus, int amountMem, int time, int pendingResponses) {
 		this.numCpus = numCpus;
@@ -39,6 +42,10 @@ public class RequestResources {
 		return time;
 	}
 
+	public ArrayList<Response> getResponses() {
+		return responses;
+	}
+
 	public Response findBestResponse(Response res) {
 		if (bestResponse == null) {
 			bestResponse = res;
@@ -53,6 +60,11 @@ public class RequestResources {
 	
 	public ArrayList<Response> collectResponses(Response res) {
 		responses.add(res);
+		return responses;
+	}
+	
+	public ArrayList<Response> sortResponses() {
+		Collections.sort(responses, new ComparatorQueueSize());;
 		return responses;
 	}
 
