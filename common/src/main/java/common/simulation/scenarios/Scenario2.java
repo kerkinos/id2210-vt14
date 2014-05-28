@@ -9,7 +9,7 @@ public class Scenario2 extends Scenario {
 		StochasticProcess process0 = new StochasticProcess() {{
 			eventInterArrivalTime(constant(1000));
 			raise(30, Operations.peerJoin(), 
-                                uniform(1, 1024), 
+                                uniform(0, Integer.MAX_VALUE), 
                                 constant(8), constant(12000)
                              );
 		}};

@@ -75,6 +75,7 @@ public final class ResourceManager extends ComponentDefinition {
 	
 	int requestedNumCpus;
 	int requestedNumMem;
+	int requestedNumMachines = 1;
 	
 	private Address self;
 	private RmConfiguration configuration;
@@ -181,13 +182,16 @@ public final class ResourceManager extends ComponentDefinition {
 			// event.getSource().getId());
 			//System.out.println("Got allocate event for requestId " + event.getReqid());
 			RequestResources rr = requestResourcesMap.get(event.getReqid());
-			Response best = rr.findBestResponse(event);
+			//Response best = rr.findBestResponse(event);
+			rr.collectResponses(event);
 			rr.pendingResponses --;
 			requestResourcesMap.put(event.getReqid(), rr);
 			if (rr.pendingResponses == 0) {
 				//System.out.println("HERE");
-				Allocate al = new Allocate(self, best.getSource(),rr.getNumCpus(), rr.getAmountMem(), rr.getTime(), event.getReqid(),event.getStartTime());
-				trigger(al, networkPort);
+				//TODO sort the responses list here
+				//TODO implement with for here
+				//Allocate al = new Allocate(self, best.getSource(),rr.getNumCpus(), rr.getAmountMem(), rr.getTime(), event.getReqid(),event.getStartTime());
+				//trigger(al, networkPort);
 			}
 		}
 	};
@@ -264,7 +268,9 @@ public final class ResourceManager extends ComponentDefinition {
 		@Override
 		public void handle(AllocateResourcesManyMachines event) {
 			long startTime = System.currentTimeMillis();
-
+			
+			event.setStartTime(startTime);
+			setRequestedNumMachines(event.getNumMachines());
 			System.out.println(self.getId() + "got request resource id: "
 					+ event.getId() + " at time " + startTime);
 			
@@ -287,14 +293,30 @@ public final class ResourceManager extends ComponentDefinition {
 //				}
 //			}
 			
-			if(cyclonPartners.size() >= event.getNumMachines()) {
-				for(int i=0; i<event.getNumMachines(); i++) {
+			if(cyclonPartners.size() >= event.getNumMachines() && cyclonPartners.size() <= MAX_NUM_NODES) {
+//				for(int i=0; i<event.getNumMachines(); i++) {
+//					int index = random.nextInt(cyclonPartners.size());
+//					PeerDescriptor dest = cyclonPartners.get(index);
+//					cyclonPartners.remove(index);
+//					Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
+//									event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), startTime);
+//					trigger(al, networkPort);
+//				}
+				for (PeerDescriptor dest : cyclonPartners) {
+					Request req = new Request(self, dest.getAddress(),
+							event.getNumCpus(), event.getMemoryInMbs(),
+							event.getId(), event.getStartTime());
+					trigger(req, networkPort);
+				}
+			} else if(cyclonPartners.size() >= event.getNumMachines() && cyclonPartners.size() > MAX_NUM_NODES){
+				for (int i = 0; i < MAX_NUM_NODES; i++) {
 					int index = random.nextInt(cyclonPartners.size());
 					PeerDescriptor dest = cyclonPartners.get(index);
 					cyclonPartners.remove(index);
-					Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
-									event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), startTime);
-					trigger(al, networkPort);
+					Request req = new Request(self, dest.getAddress(),
+							event.getNumCpus(), event.getMemoryInMbs(),
+							event.getId(), event.getStartTime());
+					trigger(req, networkPort);
 				}
 			}
 			else {
@@ -334,7 +356,7 @@ public final class ResourceManager extends ComponentDefinition {
 	};
 	
 	void takeCyclonSample(RequestResource event) {
-		if (cyclonPartners.size() <= MAX_NUM_NODES) {
+		if (cyclonPartners.size() <= MAX_NUM_NODES && !cyclonPartners.isEmpty()) {
 			requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
 													.getMemoryInMbs(), event
 													.getTimeToHoldResource(),
@@ -359,7 +381,6 @@ public final class ResourceManager extends ComponentDefinition {
 						event.getId(), event.getStartTime());
 				trigger(req, networkPort);
 			}
-
 		}
 	}
 	
@@ -394,5 +415,13 @@ public final class ResourceManager extends ComponentDefinition {
 //            }
 		}
 	};
+
+	public int getRequestedNumMachines() {
+		return requestedNumMachines;
+	}
+
+	public void setRequestedNumMachines(int requestedNumMachines) {
+		this.requestedNumMachines = requestedNumMachines;
+	}
 
 }

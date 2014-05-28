@@ -9,6 +9,7 @@ public final class AllocateResourcesManyMachines extends Event {
     private final int memoryInMbs;
     private final int numMachines;
     private final int timeToHoldResource;
+    private long startTime = 0;
 
     public AllocateResourcesManyMachines(long id, int numCpus, int memoryInMbs, int numMachines, int timeToHoldResource) {
         this.id = id;
@@ -37,6 +38,14 @@ public final class AllocateResourcesManyMachines extends Event {
     public int getNumMachines() {
     	return numMachines;
     }
+
+	public long getStartTime() {
+		return startTime;
+	}
+
+	public void setStartTime(long startTime) {
+		this.startTime = startTime;
+	}
     
 
 }

@@ -1,6 +1,8 @@
 package resourcemanager.system.peer.rm;
 
+import java.util.ArrayList;
 import java.util.List;
+
 import se.sics.kompics.address.Address;
 import se.sics.kompics.network.Message;
 import se.sics.kompics.timer.ScheduleTimeout;
@@ -16,6 +18,7 @@ public class RequestResources {
 	private int time;
 	int pendingResponses;
 	Response bestResponse = null;
+	ArrayList<Response> responses = null;
 
 	public RequestResources(int numCpus, int amountMem, int time, int pendingResponses) {
 		this.numCpus = numCpus;
@@ -46,6 +49,11 @@ public class RequestResources {
 		}
 
 		return bestResponse;
+	}
+	
+	public ArrayList<Response> collectResponses(Response res) {
+		responses.add(res);
+		return responses;
 	}
 
 	public static class RequestTimeout extends Timeout {
