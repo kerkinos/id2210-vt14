@@ -4,6 +4,7 @@ import common.simulation.AllocateResourcesManyMachines;
 import common.simulation.PeerFail;
 import common.simulation.PeerJoin;
 import common.simulation.RequestResource;
+import common.simulation.TerminatePeers;
 import se.sics.kompics.p2p.experiment.dsl.adaptor.Operation;
 import se.sics.kompics.p2p.experiment.dsl.adaptor.Operation1;
 import se.sics.kompics.p2p.experiment.dsl.adaptor.Operation3;
@@ -36,7 +37,14 @@ public class Operations {
             return new TerminateExperiment();
         }
     };
-
+    
+    public static Operation<TerminatePeers> terminatePeers = new Operation<TerminatePeers>() {
+        @Override
+        public TerminatePeers generate() {
+            return new TerminatePeers();
+        }
+    };
+    
     public static Operation4<RequestResource, Long, Long, Long, Long> requestResources() {
         return new Operation4<RequestResource, Long, Long, Long, Long>() {
             @Override

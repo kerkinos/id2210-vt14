@@ -59,6 +59,14 @@ import cyclon.system.peer.cyclon.PeerDescriptor;
  */
 public final class ResourceManager extends ComponentDefinition {
 
+	public static boolean isFlag() {
+		return flag;
+	}
+
+	public static void setFlag(boolean flag) {
+		ResourceManager.flag = flag;
+	}
+
 	private static final Logger logger = LoggerFactory
 			.getLogger(ResourceManager.class);
 	Positive<RmPort> indexPort = requires(RmPort.class);
@@ -75,7 +83,7 @@ public final class ResourceManager extends ComponentDefinition {
 	
 	int requestedNumCpus;
 	int requestedNumMem;
-	int requestedNumMachines = 1;
+	static int requestedNumMachines = 1;
 	
 	private Address self;
 	private RmConfiguration configuration;
@@ -271,8 +279,8 @@ public final class ResourceManager extends ComponentDefinition {
 			
 			event.setStartTime(startTime);
 			setRequestedNumMachines(event.getNumMachines());
-			System.out.println(self.getId() + "got request resource id: "
-					+ event.getId() + " at time " + startTime);
+//			System.out.println(self.getId() + "got request resource id: "
+//					+ event.getId() + " at time " + startTime);
 			
 //			requestedNumCpus = event.getNumCpus();
 //			requestedNumMem = event.getMemoryInMbs();
@@ -416,7 +424,7 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 	};
 
-	public int getRequestedNumMachines() {
+	public static int getRequestedNumMachines() {
 		return requestedNumMachines;
 	}
 

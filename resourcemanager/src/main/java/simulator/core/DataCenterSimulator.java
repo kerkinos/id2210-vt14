@@ -1,14 +1,13 @@
 package simulator.core;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.net.InetAddress;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Random;
 
-import org.apache.commons.math.random.ValueServer;
 import org.apache.commons.math.stat.descriptive.rank.Percentile;
 
 import resourcemanager.system.peer.rm.ResourceManager;
@@ -31,6 +30,7 @@ import simulator.snapshot.Snapshot;
 import system.peer.Peer;
 import system.peer.PeerInit;
 import system.peer.RmPort;
+
 import common.configuration.Configuration;
 import common.configuration.CyclonConfiguration;
 import common.configuration.RmConfiguration;
@@ -44,6 +44,8 @@ import common.simulation.PeerJoin;
 import common.simulation.RequestResource;
 import common.simulation.SimulatorInit;
 import common.simulation.SimulatorPort;
+import common.simulation.TerminatePeers;
+
 import cyclon.system.peer.cyclon.PeerDescriptor;
 
 public final class DataCenterSimulator extends ComponentDefinition {
@@ -72,9 +74,11 @@ public final class DataCenterSimulator extends ComponentDefinition {
         subscribe(handleGenerateReport, timer);
         subscribe(handlePeerJoin, simulator);
         subscribe(handlePeerFail, simulator);
+        subscribe(handleTerminatePeers, simulator);
         subscribe(handleTerminateExperiment, simulator);
         subscribe(handleRequestResource, simulator);
         subscribe(handleBatchRequest, simulator);
+
     }
 	
     Handler<SimulatorInit> handleInit = new Handler<SimulatorInit>() {
@@ -161,12 +165,19 @@ public final class DataCenterSimulator extends ComponentDefinition {
             stopAndDestroyPeer(id);
         }
     };
+    
+    Handler<TerminatePeers> handleTerminatePeers = new Handler<TerminatePeers>() {
+        @Override
+        public void handle(TerminatePeers event) {
+        	System.err.print("Finished");
+        	System.exit(0);
+        }
+    };
 	
     Handler<TerminateExperiment> handleTerminateExperiment = new Handler<TerminateExperiment>() {
         @Override
         public void handle(TerminateExperiment event) {
-            System.err.println("Finishing experiment - terminating....\n");
-            //TODO print results here
+            System.err.println("Finished experiment...Generating Statistics");
             BufferedReader br;
 			try {
 				br = new BufferedReader(new FileReader("stats.txt"));
@@ -185,17 +196,23 @@ public final class DataCenterSimulator extends ComponentDefinition {
 	            percentile = getPercentile(values, total);
 	            String which;
 	            if (ResourceManager.flag) {
-	            	which = ", Simple Sparrow\n";
+	            	which = ", Simple Sparrow";
 	            }else {
-	            	which = ", Sparrow with gradient\n";
+	            	which = ", Sparrow with gradient";
 	            }
-	            System.out.println("A total of "+total+" allocations of resources"+which+
+	            System.out.println("A total of "+total+" allocations of resources with "+peers.size()+" peers"+which+" with Jobs of "+ResourceManager.getRequestedNumMachines()+" task(s)\n"+
 	            				   "Average time : "+average+" ms\n"+
 	            				   "99th Percentile : "+(int)percentile+ " ms");
+	            File f = new File("stats.txt");
+	            f.delete();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-            System.exit(0);
+			if(ResourceManager.isFlag()) {
+				ResourceManager.setFlag(false);
+			} else {
+				ResourceManager.setFlag(true);
+			}
         }
 
 		private double getPercentile(double [] values, int total) {
@@ -246,8 +263,9 @@ public final class DataCenterSimulator extends ComponentDefinition {
 
         destroy(peer);
     }
-
-	
+    
+    
+    
     private final static class MessageDestinationFilter extends ChannelFilter<Message, Address> {
 
         public MessageDestinationFilter(Address address) {
