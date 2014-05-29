@@ -63,7 +63,7 @@ public class RequestResources {
 	}
 	
 	public void sortResponses() {
-		Collections.sort(responses, new ComparatorQueueSize());;
+		Collections.sort(responses, new ComparatorQueueSize());
 	}
 
 	public static class RequestTimeout extends Timeout {

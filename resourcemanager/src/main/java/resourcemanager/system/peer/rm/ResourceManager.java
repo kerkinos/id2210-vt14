@@ -87,6 +87,7 @@ public final class ResourceManager extends ComponentDefinition {
 	private Random random;
 	private AvailableResources availableResources;
 	private static final int MAX_NUM_NODES = 4;
+	PeerDescriptor selfDescriptor;
 	
 	//true = cyclon
 	public static boolean flag = true;
@@ -128,6 +129,7 @@ public final class ResourceManager extends ComponentDefinition {
 		@Override
 		public void handle(RmInit init) {
 			self = init.getSelf();
+			selfDescriptor = new PeerDescriptor(self, availableResources);
 			configuration = init.getConfiguration();
 			random = new Random(init.getConfiguration().getSeed());
 			availableResources = init.getAvailableResources();
@@ -221,6 +223,8 @@ public final class ResourceManager extends ComponentDefinition {
 			if (!success) {
 				if(!queue.contains(event)) {
 					queue.add(event);
+					selfDescriptor.setQueueSize(queue.size());
+					availableResources.setQueueSize(queue.size());
 				}		
 			} 
 			else {
@@ -237,9 +241,12 @@ public final class ResourceManager extends ComponentDefinition {
 //				}
 				
 				
-				availableResources.allocate(event.getNumCpus(),event.getAmountMem());				
+				availableResources.allocate(event.getNumCpus(),event.getAmountMem());	
+				selfDescriptor.setAv(availableResources);
 				if(!queue.isEmpty()) {
 					queue.remove();
+					selfDescriptor.setQueueSize(queue.size());
+					availableResources.setQueueSize(queue.size());
 				}
 				
 				ScheduleTimeout st = new ScheduleTimeout(event.getTime());
@@ -256,6 +263,7 @@ public final class ResourceManager extends ComponentDefinition {
 		public void handle(JobDone arg0) {
 			
 			availableResources.release(arg0.getNumCpus(), arg0.getAmountMem());
+			selfDescriptor.setAv(availableResources);
 			if (!queue.isEmpty()) {
 				Allocate al = queue.peek();
 				trigger(al, networkPort);
@@ -282,6 +290,16 @@ public final class ResourceManager extends ComponentDefinition {
 			
 			event.setStartTime(startTime);
 			setRequestedNumMachines(event.getNumMachines());
+			
+			if( (event.getMemoryInMbs() * event.getNumCpus()) != 0 ) {
+				tmanPartners = tmanPartnersByRes;
+			}
+			else if(event.getMemoryInMbs() == 0) {
+				tmanPartners = tmanPartnersByCpu;
+			}
+			else if(event.getNumCpus() == 0) {
+				tmanPartners = tmanPartnersByMem;
+			}
 
 			if(flag) {
 				if(cyclonPartners.size() >= event.getNumMachines() && cyclonPartners.size() <= MAX_NUM_NODES) {
@@ -392,14 +410,20 @@ public final class ResourceManager extends ComponentDefinition {
 	
 	void takeTmanSample(RequestResource event){
 		if (tmanPartners.size() != 0) {
-
 //			int index = random.nextInt(tmanPartners.size());
-			int index = 0;
+			Collections.sort(tmanPartners, new ComparatorQueueSizeRM());
+//			Collections.sort(tmanPartners, new ComparatorQueueSizeRMTest());
+			int index = random.nextInt(tmanPartners.size()/2);
+//			int index = 0;
+//			for(PeerDescriptor p : tmanPartners) {
+//				System.out.println(p.getQueueSize());
+//			}
+//			System.out.println("==========");
 			PeerDescriptor dest = tmanPartners.get(index);
 			Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
 					event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), event.getStartTime());
 			trigger(al, networkPort);
-			
+//			tmanPartners.remove(index);
 		}
 	}
 	

@@ -12,7 +12,18 @@ public class PeerDescriptor implements Comparable<PeerDescriptor>, Serializable 
 	private final Address peerAddress;
 	private int age;
 	private AvailableResources av;
+	private int queueSize = 0;
 	    
+
+	public int getQueueSize() {
+		return queueSize;
+	}
+
+
+	public void setQueueSize(int queueSize) {
+		this.queueSize = queueSize;
+	}
+
 
 	public PeerDescriptor(Address peerAddress, AvailableResources av) {
 		this.peerAddress = peerAddress;

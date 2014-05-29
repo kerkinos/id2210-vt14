@@ -16,19 +16,19 @@ public class Scenario1 extends Scenario {
                 
 		StochasticProcess requestResources1 = new StochasticProcess() {{
 			eventInterArrivalTime(constant(100));
-			raise(5000, Operations.requestResources(), 
+			raise(200, Operations.requestResources(), 
                                 uniform(0, Integer.MAX_VALUE),
-                                constant(2), constant(2000),
-                                constant(1000*6*1) // 1 minute
+                                constant(2), constant(0),
+                                constant(1000*60*1) // 1 minute
                                 );
 		}};
 		
 		StochasticProcess requestResources2 = new StochasticProcess() {{
 			eventInterArrivalTime(constant(100));
-			raise(5000, Operations.requestResources(), 
+			raise(200, Operations.requestResources(), 
                                 uniform(0, Integer.MAX_VALUE),
-                                constant(2), constant(2000),
-                                constant(1000*6*1) // 1 minute
+                                constant(2), constant(0),
+                                constant(1000*60*1) // 1 minute
                                 );
 		}};
 		
@@ -37,7 +37,7 @@ public class Scenario1 extends Scenario {
 			raise(2500, Operations.allocateResourcesManyMachines(), 
                                 uniform(0, Integer.MAX_VALUE),
                                 constant(2), constant(2000), constant(2),
-                                constant(1000*6*1) // 1 minute
+                                constant(1000*60*1) // 1 minute
                                 );
 		}};
 		
@@ -46,7 +46,7 @@ public class Scenario1 extends Scenario {
 			raise(2500, Operations.allocateResourcesManyMachines(), 
                                 uniform(0, Integer.MAX_VALUE),
                                 constant(2), constant(2000), constant(2),
-                                constant(1000*6*1) // 1 minute
+                                constant(1000*60*1) // 1 minute
                                 );
 		}};
                 
@@ -89,11 +89,11 @@ public class Scenario1 extends Scenario {
 		requestResources2.startAfterTerminationOf(1000*100, generateStats1);
 		generateStats2.startAfterTerminationOf(1000*100, requestResources2);
 		//terminateScenario.startAfterTerminationOf(1000*100, generateStats2);
-		requestBatchResources1.startAfterTerminationOf(1000*100, generateStats2);
-		generateStats3.startAfterTerminationOf(1000*100, requestBatchResources1);
-		requestBatchResources2.startAfterTerminationOf(1000*100, generateStats3);
-		generateStats4.startAfterTerminationOf(1000*100, requestBatchResources2);
-		terminateScenario.startAfterTerminationOf(1000*100, generateStats4);
+//		requestBatchResources1.startAfterTerminationOf(1000*1000, generateStats2);
+//		generateStats3.startAfterTerminationOf(1000*1000, requestBatchResources1);
+//		requestBatchResources2.startAfterTerminationOf(1000*1000, generateStats3);
+//		generateStats4.startAfterTerminationOf(1000*1000, requestBatchResources2);
+		terminateScenario.startAfterTerminationOf(1000*100, generateStats2);
         
                 
 	}};

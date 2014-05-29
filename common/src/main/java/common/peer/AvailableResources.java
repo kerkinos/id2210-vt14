@@ -13,8 +13,21 @@ public class AvailableResources {
 
     private volatile int numFreeCpus;
     private volatile int freeMemInMbs;
+    private volatile int queueSize;
 
-    public AvailableResources(int numFreeCpus, int freeMemInMbs) {
+    public int getQueueSize() {
+		return queueSize;
+	}
+
+
+
+	public void setQueueSize(int queueSize) {
+		this.queueSize = queueSize;
+	}
+
+
+
+	public AvailableResources(int numFreeCpus, int freeMemInMbs) {
         this.numFreeCpus = numFreeCpus;
         this.freeMemInMbs = freeMemInMbs;
     }

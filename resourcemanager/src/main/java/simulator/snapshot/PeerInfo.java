@@ -35,11 +35,11 @@ public class PeerInfo {
         return new ArrayList<Address>(neighbours);
     }
 
-	public ArrayList<PeerDescriptor> getTmanPartners() {
+	public synchronized ArrayList<PeerDescriptor> getTmanPartners() {
 		return tmanPartners;
 	}
 
-	public void setTmanPartners(ArrayList<PeerDescriptor> tmanPartners) {
+	public synchronized void setTmanPartners(ArrayList<PeerDescriptor> tmanPartners) {
 		this.tmanPartners = tmanPartners;
 	}
 
