@@ -17,7 +17,7 @@ public class Main {
 //        scenario.setSeed(seed);
 //        scenario.getScenario().simulate(DataCenterSimulationMain.class);
         
-        Scenario scenario = new Scenario1();
+        Scenario scenario = new Scenario2();
         scenario.setSeed(seed);
         scenario.getScenario().simulate(DataCenterSimulationMain.class);
         

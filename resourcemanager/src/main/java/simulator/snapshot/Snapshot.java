@@ -3,6 +3,8 @@ package simulator.snapshot;
 import common.peer.AvailableResources;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import cyclon.system.peer.cyclon.PeerDescriptor;
@@ -14,6 +16,7 @@ public class Snapshot {
             new ConcurrentHashMap<PeerDescriptor, PeerInfo>();
     private static int counter = 0;
     private static String FILENAME = "search.out";
+    public static Map<Long, Long> batchMap = new HashMap<Long, Long>();
 
 
     public static void init(int numOfStripes) {
@@ -30,6 +33,9 @@ public class Snapshot {
         peers.remove(address);
     }
 
+    public static void addTime(Long key, Long time) {
+    	batchMap.put(key, time);
+    }
 
 
     public static void updateNeighbours(PeerDescriptor address, ArrayList<Address> partners) {

@@ -11,12 +11,10 @@ import cyclon.system.peer.cyclon.PeerDescriptor;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
-
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -38,17 +36,16 @@ import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.kompics.web.Web;
+import simulator.snapshot.Snapshot;
 import system.peer.RmPort;
 import tman.system.peer.tman.ComparatorByNumCpu;
 import tman.system.peer.tman.ComparatorByNumMem;
 import tman.system.peer.tman.ComparatorByResources;
 import tman.system.peer.tman.TManSample;
 import tman.system.peer.tman.TManSamplePort;
-
 import common.configuration.RmConfiguration;
 import common.peer.AvailableResources;
 import common.simulation.RequestResource;
-
 import cyclon.system.peer.cyclon.CyclonSample;
 import cyclon.system.peer.cyclon.CyclonSamplePort;
 import cyclon.system.peer.cyclon.PeerDescriptor;
@@ -90,6 +87,7 @@ public final class ResourceManager extends ComponentDefinition {
 
 	private Queue<Allocate> queue = new LinkedList<Allocate>();
 	private Map<Long, RequestResources> requestResourcesMap = new HashMap<Long, RequestResources>();
+	private Map<Long, Long> batchMap = new HashMap<Long, Long>();
 	private static Map<Long, Long> timePerRequest = new HashMap<Long, Long>();
 
 	Comparator<PeerDescriptor> peerAgeComparator = new Comparator<PeerDescriptor>() {
@@ -164,7 +162,6 @@ public final class ResourceManager extends ComponentDefinition {
 			// System.out.println("I have " +
 			// availableResources.getNumFreeCpus() + " cpus and " +
 			// availableResources.getFreeMemInMbs());
-
 			// send a response event with a boolean value
 			boolean success = availableResources.isAvailable(
 					event.getNumCpus(), event.getAmountMemInMb());
@@ -189,8 +186,9 @@ public final class ResourceManager extends ComponentDefinition {
 			if (rr.pendingResponses == 0) {
 				rr.sortResponses();
 				for (int i = 0 ; i < requestedNumMachines; i++) {
-				Allocate al = new Allocate(self, rr.getResponses().get(i).getSource(),rr.getNumCpus(), rr.getAmountMem(), rr.getTime(), event.getReqid(),event.getStartTime());
-				trigger(al, networkPort);
+					Allocate al = new Allocate(self, rr.getResponses().get(i).getSource(),
+									rr.getNumCpus(), rr.getAmountMem(), rr.getTime(), event.getReqid(),event.getStartTime());
+					trigger(al, networkPort);
 				}
 			}
 		}
@@ -219,6 +217,18 @@ public final class ResourceManager extends ComponentDefinition {
 			} 
 			else {
 				long timeToFindResources = System.currentTimeMillis() - event.getStartTime();
+				Snapshot.addTime(event.getReqid(), timeToFindResources);
+					//save stats to a file
+//				try {
+//					PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("stats.txt", true)));
+//					out.println(timeToFindResources);
+//					out.close();
+//				} 
+//				catch (IOException e) {
+//					e.printStackTrace();
+//				}
+				
+				
 				availableResources.allocate(event.getNumCpus(),event.getAmountMem());				
 				if(!queue.isEmpty()) {
 					queue.remove();
@@ -227,14 +237,7 @@ public final class ResourceManager extends ComponentDefinition {
 				ScheduleTimeout st = new ScheduleTimeout(event.getTime());
 				st.setTimeoutEvent(new JobDone(st, event.getNumCpus(), event.getAmountMem()));
 				trigger(st, timerPort);
-				//save stats to a file
-				try {
-				    PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("stats.txt", true)));
-				    out.println(timeToFindResources);
-				    out.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+				
 			}
 		}
 	};
@@ -271,8 +274,9 @@ public final class ResourceManager extends ComponentDefinition {
 			
 			event.setStartTime(startTime);
 			setRequestedNumMachines(event.getNumMachines());
-			System.out.println(self.getId() + "got request resource id: "
-					+ event.getId() + " at time " + startTime);
+			
+//			System.out.println(self.getId() + "got request resource id: "
+//					+ event.getId() + " at time " + startTime);
 			
 //			requestedNumCpus = event.getNumCpus();
 //			requestedNumMem = event.getMemoryInMbs();
@@ -302,13 +306,21 @@ public final class ResourceManager extends ComponentDefinition {
 //									event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), startTime);
 //					trigger(al, networkPort);
 //				}
+				requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
+												.getMemoryInMbs(), event
+												.getTimeToHoldResource(),
+												cyclonPartners.size()));
 				for (PeerDescriptor dest : cyclonPartners) {
 					Request req = new Request(self, dest.getAddress(),
 							event.getNumCpus(), event.getMemoryInMbs(),
 							event.getId(), event.getStartTime());
 					trigger(req, networkPort);
 				}
-			} else if(cyclonPartners.size() >= event.getNumMachines() && cyclonPartners.size() > MAX_NUM_NODES){
+			} 
+			else if(cyclonPartners.size() >= event.getNumMachines() && cyclonPartners.size() > MAX_NUM_NODES){
+				requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
+												.getMemoryInMbs(), event
+												.getTimeToHoldResource(), MAX_NUM_NODES));
 				for (int i = 0; i < MAX_NUM_NODES; i++) {
 					int index = random.nextInt(cyclonPartners.size());
 					PeerDescriptor dest = cyclonPartners.get(index);

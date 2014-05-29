@@ -166,6 +166,12 @@ public final class DataCenterSimulator extends ComponentDefinition {
         @Override
         public void handle(TerminateExperiment event) {
             System.err.println("Finishing experiment - terminating....\n");
+            long avg = 0;
+            for(Long time : Snapshot.batchMap.values()) {
+            	//System.out.println(time);
+            	avg += time;
+            }
+            System.out.println(avg / Snapshot.batchMap.size());
             //TODO print results here
             BufferedReader br;
 			try {

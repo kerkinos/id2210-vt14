@@ -58,14 +58,12 @@ public class RequestResources {
 		return bestResponse;
 	}
 	
-	public ArrayList<Response> collectResponses(Response res) {
+	public void collectResponses(Response res) {
 		responses.add(res);
-		return responses;
 	}
 	
-	public ArrayList<Response> sortResponses() {
+	public void sortResponses() {
 		Collections.sort(responses, new ComparatorQueueSize());;
-		return responses;
 	}
 
 	public static class RequestTimeout extends Timeout {
