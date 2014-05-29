@@ -283,45 +283,52 @@ public final class ResourceManager extends ComponentDefinition {
 			event.setStartTime(startTime);
 			setRequestedNumMachines(event.getNumMachines());
 
-			
-			if(cyclonPartners.size() >= event.getNumMachines() && cyclonPartners.size() <= MAX_NUM_NODES) {
-//				for(int i=0; i<event.getNumMachines(); i++) {
-//					int index = random.nextInt(cyclonPartners.size());
-//					PeerDescriptor dest = cyclonPartners.get(index);
-//					cyclonPartners.remove(index);
-//					Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
-//									event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), startTime);
-//					trigger(al, networkPort);
-//				}
-				requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
-												.getMemoryInMbs(), event
-												.getTimeToHoldResource(),
-												cyclonPartners.size()));
-				for (PeerDescriptor dest : cyclonPartners) {
-					Request req = new Request(self, dest.getAddress(),
-							event.getNumCpus(), event.getMemoryInMbs(),
-							event.getId(), event.getStartTime());
-					trigger(req, networkPort);
+			if(flag) {
+				if(cyclonPartners.size() >= event.getNumMachines() && cyclonPartners.size() <= MAX_NUM_NODES) {
+					requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
+													.getMemoryInMbs(), event
+													.getTimeToHoldResource(),
+													cyclonPartners.size()));
+					for (PeerDescriptor dest : cyclonPartners) {
+						Request req = new Request(self, dest.getAddress(),
+								event.getNumCpus(), event.getMemoryInMbs(),
+								event.getId(), event.getStartTime());
+						trigger(req, networkPort);
+					}
+				} 
+				else if(cyclonPartners.size() >= event.getNumMachines() && cyclonPartners.size() > MAX_NUM_NODES){
+					requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
+													.getMemoryInMbs(), event
+													.getTimeToHoldResource(), MAX_NUM_NODES));
+					for (int i = 0; i < MAX_NUM_NODES; i++) {
+						int index = random.nextInt(cyclonPartners.size());
+						PeerDescriptor dest = cyclonPartners.get(index);
+						cyclonPartners.remove(index);
+						Request req = new Request(self, dest.getAddress(),
+								event.getNumCpus(), event.getMemoryInMbs(),
+								event.getId(), event.getStartTime());
+						trigger(req, networkPort);
+					}
 				}
-			} 
-			else if(cyclonPartners.size() >= event.getNumMachines() && cyclonPartners.size() > MAX_NUM_NODES){
-				requestResourcesMap.put(event.getId(), new RequestResources(event.getNumCpus(), event
-												.getMemoryInMbs(), event
-												.getTimeToHoldResource(), MAX_NUM_NODES));
-				for (int i = 0; i < MAX_NUM_NODES; i++) {
-					int index = random.nextInt(cyclonPartners.size());
-					PeerDescriptor dest = cyclonPartners.get(index);
-					cyclonPartners.remove(index);
-					Request req = new Request(self, dest.getAddress(),
-							event.getNumCpus(), event.getMemoryInMbs(),
-							event.getId(), event.getStartTime());
-					trigger(req, networkPort);
+				else {
+					return;
 				}
 			}
 			else {
-				return;
+				if (tmanPartners.size() >= event.getNumMachines()) {
+				for (int i = 0 ; i < requestedNumMachines; i++) {
+					PeerDescriptor dest = tmanPartners.get(i);
+					Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(), 
+							event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(),event.getStartTime());
+					trigger(al, networkPort);
+				}
+				int index = 0;
+				PeerDescriptor dest = tmanPartners.get(index);
+				Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
+							event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), event.getStartTime());
+				trigger(al, networkPort);	
+				}
 			}
-		
 		}
 	};
 
