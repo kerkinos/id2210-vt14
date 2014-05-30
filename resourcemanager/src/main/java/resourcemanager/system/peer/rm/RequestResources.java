@@ -11,9 +11,7 @@ import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import tman.system.peer.tman.ComparatorByResources;
 
-/**
- * User: jdowling
- */
+
 public class RequestResources {
 
 	private int numCpus;

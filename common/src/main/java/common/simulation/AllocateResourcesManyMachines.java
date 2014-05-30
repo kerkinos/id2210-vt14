@@ -2,6 +2,11 @@ package common.simulation;
 
 import se.sics.kompics.Event;
 
+/**
+ * We wrote this event in order to issue batch requests for resources
+ * Now we can assign each request in more than one machines.
+ *
+ */
 public final class AllocateResourcesManyMachines extends Event {
     
     private final long id;

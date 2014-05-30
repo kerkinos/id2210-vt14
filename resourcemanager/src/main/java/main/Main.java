@@ -4,7 +4,6 @@ import simulator.core.DataCenterSimulationMain;
 import common.configuration.Configuration;
 import common.simulation.scenarios.Scenario;
 import common.simulation.scenarios.Scenario1;
-import common.simulation.scenarios.Scenario2;
 
 public class Main {
 

@@ -9,16 +9,11 @@ import cyclon.system.peer.cyclon.CyclonSample;
 import cyclon.system.peer.cyclon.CyclonSamplePort;
 import cyclon.system.peer.cyclon.PeerDescriptor;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
+
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
@@ -43,15 +38,11 @@ import tman.system.peer.tman.ComparatorByNumMem;
 import tman.system.peer.tman.ComparatorByResources;
 import tman.system.peer.tman.TManSample;
 import tman.system.peer.tman.TManSamplePort;
-import common.configuration.RmConfiguration;
-import common.peer.AvailableResources;
-import common.simulation.RequestResource;
-import cyclon.system.peer.cyclon.CyclonSample;
-import cyclon.system.peer.cyclon.CyclonSamplePort;
-import cyclon.system.peer.cyclon.PeerDescriptor;
+
 
 /**
- * Should have some comments here.
+ * The ResourceManager is the component that receives the requests for resources.
+ * In our system every node is a Resource Manager and manages its own set of Cpus and Memory.
  * 
  */
 public final class ResourceManager extends ComponentDefinition {
@@ -92,12 +83,10 @@ public final class ResourceManager extends ComponentDefinition {
 	//true = cyclon
 	public static boolean flag = true;
 
-	// queue where we put incoming requests for resources
-
+	// queue where we put incoming requests for resources in case we dont have available resources
 	private Queue<Allocate> queue = new LinkedList<Allocate>();
+	// Map where we put request_id as a key and RequestResources object as a value
 	private Map<Long, RequestResources> requestResourcesMap = new HashMap<Long, RequestResources>();
-	private Map<Long, Long> batchMap = new HashMap<Long, Long>();
-	private static Map<Long, Long> timePerRequest = new HashMap<Long, Long>();
 
 	Comparator<PeerDescriptor> peerAgeComparator = new Comparator<PeerDescriptor>() {
 		@Override
@@ -162,16 +151,13 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 	};
 
+	/**
+	 * Triggered when a peer receives a request. He answers back with a boolean value and its queue size.
+	 */
 	Handler<Request> handleResourceAllocationRequest = new Handler<Request>() {
 		@Override
 		public void handle(Request event) {
-			// System.out.println(self.getId() + " : Received Request for " +
-			// event.getNumCpus() + " cpus and " + event.getAmountMemInMb()
-			// + " memInMb" + " from peer with id " +
-			// event.getSource().getId());
-			// System.out.println("I have " +
-			// availableResources.getNumFreeCpus() + " cpus and " +
-			// availableResources.getFreeMemInMbs());
+
 			// send a response event with a boolean value
 			boolean success = availableResources.isAvailable(
 					event.getNumCpus(), event.getAmountMemInMb());
@@ -182,12 +168,16 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 	};
 
+	/**
+	 * Triggered when we receive a response from a peer.
+	 * we wait until we receive responses from all the peers we have sent a request for resources
+	 * and then we choose the best peer among them to assign the request
+	 */
 	Handler<Response> handleResourceAllocationResponse = new Handler<Response>() {
 		@Override
 		public void handle(Response event) {
 			// System.out.println(self + " Got response from " +
 			// event.getSource().getId());
-			//System.out.println("Got allocate event for requestId " + event.getReqid());
 			RequestResources rr = requestResourcesMap.get(event.getReqid());
 			//Response best = rr.findBestResponse(event);
 			rr.collectResponses(event);
@@ -203,18 +193,12 @@ public final class ResourceManager extends ComponentDefinition {
 			}
 		}
 	};
-	
-	static long getAverageTime() {
-		long sum = 0;
-		for(Long l : timePerRequest.values()) {
-			sum += l;
-		}
-		if(timePerRequest.size()==0){
-			return 0;
-		}
-		else return sum / timePerRequest.size();
-	}
 
+	/**
+	 * Triggered when a peer receives an allocation request for resources.
+	 * If it has the available resources it allocates them
+	 * otherwise it puts the request in a queue.
+	 */
 	Handler<Allocate> handleAllocateResources = new Handler<Allocate>() {
 
 		@Override
@@ -229,17 +213,8 @@ public final class ResourceManager extends ComponentDefinition {
 			} 
 			else {
 				long timeToFindResources = System.currentTimeMillis() - event.getStartTime();
+				// for every request_id, we hold the time we did to find available resources for it in a map
 				Snapshot.addTime(event.getReqid(), timeToFindResources);
-					//save stats to a file
-//				try {
-//					PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("stats.txt", true)));
-//					out.println(timeToFindResources);
-//					out.close();
-//				} 
-//				catch (IOException e) {
-//					e.printStackTrace();
-//				}
-				
 				
 				availableResources.allocate(event.getNumCpus(),event.getAmountMem());	
 				selfDescriptor.setAv(availableResources);
@@ -257,6 +232,10 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 	};
 
+	/**
+	 * Triggered when the job has finished and we are ready to release the Resources we allocated for that job
+	 * If we have outstanding jobs in the queue we serve the next one
+	 */
 	Handler<JobDone> handleJobDone = new Handler<JobDone>() {
 
 		@Override
@@ -282,6 +261,10 @@ public final class ResourceManager extends ComponentDefinition {
 		}
 	};
 	
+	/**
+	 * This handler is triggered when there is a request for a batch request.
+	 * 
+	 */
 	Handler<AllocateResourcesManyMachines> handleBatchRequest = new Handler<AllocateResourcesManyMachines>() {
 		
 		@Override
@@ -291,6 +274,8 @@ public final class ResourceManager extends ComponentDefinition {
 			event.setStartTime(startTime);
 			setRequestedNumMachines(event.getNumMachines());
 			
+			// we check if this request is only for cpu, memory, or both
+			// and then we choose our tmanParters respectively
 			if( (event.getMemoryInMbs() * event.getNumCpus()) != 0 ) {
 				tmanPartners = tmanPartnersByRes;
 			}
@@ -334,17 +319,14 @@ public final class ResourceManager extends ComponentDefinition {
 			}
 			else {
 				if (tmanPartners.size() >= event.getNumMachines()) {
-				for (int i = 0 ; i < requestedNumMachines; i++) {
-					PeerDescriptor dest = tmanPartners.get(i);
-					Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(), 
-							event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(),event.getStartTime());
-					trigger(al, networkPort);
-				}
-				int index = 0;
-				PeerDescriptor dest = tmanPartners.get(index);
-				Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
-							event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), event.getStartTime());
-				trigger(al, networkPort);	
+					for (int i = 0 ; i < requestedNumMachines; i++) {
+						int index = random.nextInt(tmanPartners.size()/2);
+						PeerDescriptor dest = tmanPartners.get(index);
+						Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(), 
+								event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(),event.getStartTime());
+						trigger(al, networkPort);
+						tmanPartners.remove(index);
+					}
 				}
 			}
 		}
@@ -353,12 +335,11 @@ public final class ResourceManager extends ComponentDefinition {
 	Handler<RequestResource> handleRequestResource = new Handler<RequestResource>() {
 		@Override
 		public void handle(RequestResource event) {
-			// TODO: Ask for resources from cyclonPartners
-			// by sending a ResourceRequest
 			
 			event.setStartTime(System.currentTimeMillis());
 			
-			
+			// we check if this request is only for cpu, memory, or both
+			// and then we choose our tmanParters respectively
 			if( (event.getMemoryInMbs() * event.getNumCpus()) != 0 ) {
 				tmanPartners = tmanPartnersByRes;
 			}
@@ -410,18 +391,12 @@ public final class ResourceManager extends ComponentDefinition {
 	
 	void takeTmanSample(RequestResource event){
 		if (tmanPartners.size() != 0) {
-//			int index = random.nextInt(tmanPartners.size());
-			Collections.sort(tmanPartners, new ComparatorQueueSizeRM());
-//			Collections.sort(tmanPartners, new ComparatorQueueSizeRMTest());
+//			Collections.sort(tmanPartners, new ComparatorQueueSizeRM());
 			int index = random.nextInt(tmanPartners.size()/2);
 //			int index = 0;
-//			for(PeerDescriptor p : tmanPartners) {
-//				System.out.println(p.getQueueSize());
-//			}
-//			System.out.println("==========");
 			PeerDescriptor dest = tmanPartners.get(index);
 			Allocate al = new Allocate(self, dest.getAddress(), event.getNumCpus(),
-					event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), event.getStartTime());
+							event.getMemoryInMbs(), event.getTimeToHoldResource(), event.getId(), event.getStartTime());
 			trigger(al, networkPort);
 //			tmanPartners.remove(index);
 		}
@@ -440,9 +415,6 @@ public final class ResourceManager extends ComponentDefinition {
             Collections.sort(tmanPartnersByRes, new ComparatorByResources(new PeerDescriptor(self, availableResources)));
             Collections.sort(tmanPartnersByCpu, new ComparatorByNumCpu(new PeerDescriptor(self, availableResources)));
             Collections.sort(tmanPartnersByMem, new ComparatorByNumMem(new PeerDescriptor(self, availableResources)));
-//        	for(PeerDescriptor pd : tmanPartnersByRes) {
-//            	System.out.println( "from " + self.getId() + " " + pd.getAv().getNumFreeCpus() + " RESM " + pd.getAv().getFreeMemInMbs());
-//            }
 		}
 	};
 

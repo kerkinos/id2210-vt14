@@ -4,6 +4,13 @@ import java.util.Comparator;
 
 import cyclon.system.peer.cyclon.PeerDescriptor;
 
+/**
+ * at first we ranked the peers according to this equation from the paper "Converging an Overlay Network to a Gradient Topology"
+ * U(a) ≥ U(i) > U(b) or 
+ * |U(a) − U(i)| < |U(b) − U(i)|
+ * But then we saw that we get better results if we take account the queue size of each peer and compare with that.
+ * Furthermore, we don't take into account our self utility now.
+ */
 public class ComparatorByNumMem implements Comparator<PeerDescriptor> {
 
 	private PeerDescriptor self;
@@ -17,16 +24,32 @@ public class ComparatorByNumMem implements Comparator<PeerDescriptor> {
 
 		int peer1Mem = peer1.getAv().getFreeMemInMbs();
 		int peer2Mem = peer2.getAv().getFreeMemInMbs();
-		int myMem = self.getAv().getFreeMemInMbs();
-
-		if (peer1Mem < myMem && peer2Mem > myMem) {
-			return 1;
-		} else if (peer1Mem > myMem && peer2Mem < myMem) {
-			return -1;
-		} else if (Math.abs(peer1Mem - myMem) < Math.abs(peer2Mem - myMem)) {
-			return -1;
-		} else if (Math.abs(peer1Mem - myMem) > Math.abs(peer2Mem - myMem)) {
-			return 1;
+//		int myMem = self.getAv().getFreeMemInMbs();
+//
+//		if (peer1Mem < myMem && peer2Mem > myMem) {
+//			return 1;
+//		} else if (peer1Mem > myMem && peer2Mem < myMem) {
+//			return -1;
+//		} else if (Math.abs(peer1Mem - myMem) < Math.abs(peer2Mem - myMem)) {
+//			return -1;
+//		} else if (Math.abs(peer1Mem - myMem) > Math.abs(peer2Mem - myMem)) {
+//			return 1;
+//		}
+		if (peer1.getAv().getQueueSize() == 0 && peer2.getAv().getQueueSize() == 0) {
+			if (peer1Mem < peer2Mem) {
+				return 1;
+			}
+			else if (peer2Mem < peer1Mem) {
+				return -1;
+			}
+		}
+		else {
+			if(peer1.getAv().getQueueSize() > peer2.getAv().getQueueSize()) {
+				return 1;
+			}
+			else if (peer2.getAv().getQueueSize() > peer1.getAv().getQueueSize()) {
+				return -1;
+			}
 		}
 		return 0;
 	}

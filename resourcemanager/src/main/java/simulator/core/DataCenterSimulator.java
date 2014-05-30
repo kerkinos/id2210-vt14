@@ -1,11 +1,7 @@
 package simulator.core;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.net.InetAddress;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Random;
 
 import org.apache.commons.math.stat.descriptive.rank.Percentile;
@@ -137,16 +133,7 @@ public final class DataCenterSimulator extends ComponentDefinition {
 
             createAndStartNewPeer(id, event.getNumFreeCpus(), 
                     event.getFreeMemoryInMbs());
-
-//            System.out.println("*******************************");
-//            System.out.println("*******************************");
-//            for(Long a : peersAddress.keySet()) {
-//            	System.out.println("peer with id = " + a);
-//            }
-//            System.out.println("*******************************");
-//            System.out.println("*******************************");
-
-            
+         
             ringNodes.addNode(id);
         }
     };
@@ -188,47 +175,32 @@ public final class DataCenterSimulator extends ComponentDefinition {
             System.err.println("Finished experiment...Generating Statistics");
 
             
-			//	br = new BufferedReader(new FileReader("stats.txt"));
-				String line;
-				double[] values = new double[100000];
-				long sum = 0, average = 0; 
-				int total = 0;
-				double percentile = 0;
-	            String which;
-	            if (ResourceManager.flag) {
-	            	which = ", Simple Sparrow";
-	            }else {
-	            	which = ", Sparrow with gradient";
-	            }
-//	            	while ((line = br.readLine()) != null) {
-//		            	total++;
-//		            	sum += Long.parseLong(line);
-//		            	values[(int)total] = (Long.parseLong(line));
-//		            }
-//		            br.close();
-//		            average = sum / total;
-//		            percentile = getPercentile(values, total);
-//	            	System.out.println("A total of "+total+" allocations of resources with "+peers.size()+" peers"+which+" with Jobs of "+ResourceManager.getRequestedNumMachines()+" task(s)\n"+
-//         				   "Average time : "+average+" ms\n"+
-//         				   "99th Percentile : "+(int)percentile+ " ms");
-//			         File f = new File("stats.txt");
-//			         f.delete();
-	            	for(Long l : Snapshot.batchMap.values()){
-	            		total++;
-	            		values[(int)total] = l;
-	            	}
-	            	percentile = getPercentile(values, total);
-	            	System.out.println("A total of "+total+" allocations of resources with "+peers.size()+" peers"+which+" with Jobs of "+ResourceManager.getRequestedNumMachines()+" task(s)\n"+
+			double[] values = new double[100000];
+			int total = 0;
+			double percentile = 0;
+	        String which;
+	        if (ResourceManager.flag) {
+	        	which = ", Simple Sparrow";
+	        }
+	        else {
+	            which = ", Sparrow with gradient";
+	        }
+	        for(Long l : Snapshot.batchMap.values()){
+	        	total++;
+	            values[(int)total] = l;
+	        }
+	        percentile = getPercentile(values, total);
+	        System.out.println("A total of "+total+" allocations of resources with "+peers.size()+" peers"+which+
+	        					" with Jobs of "+ResourceManager.getRequestedNumMachines()+" task(s)\n"+
 	         				   "Average time : "+avg+" ms\n"+
 	         				   "99th Percentile : "+(int)percentile+ " ms");
-	            	Snapshot.batchMap.clear();
-	            
-	           
-	         
+	        Snapshot.batchMap.clear();
+
 	      
 			if(ResourceManager.isFlag()) {
 				ResourceManager.setFlag(false);
-			} else {
+			} 
+			else {
 				ResourceManager.setFlag(true);
 			}
         }
